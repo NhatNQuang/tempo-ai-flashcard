@@ -21,6 +21,8 @@ const GEMINI_KEYS = [
   process.env.GEMINI_API_KEY_2,
   process.env.GEMINI_API_KEY_3,
 ].filter(Boolean);
+const OPENAI_KEY = process.env.OPENAI_KEY;
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
@@ -40,8 +42,10 @@ app.use(express.json({ limit: '2mb' }));
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
-    model: GEMINI_MODEL,
-    configuredKeys: GEMINI_KEYS.length,
+    openaiModel: OPENAI_MODEL,
+    openaiConfigured: !!OPENAI_KEY,
+    geminiEmbeddingModel: 'gemini-embedding-001',
+    geminiKeysConfigured: GEMINI_KEYS.length,
     supabaseConfigured: !!(SUPABASE_URL && SUPABASE_KEY)
   });
 });
@@ -274,10 +278,10 @@ async function processFlashcardJob(jobId, documentId, userId, title, count, diff
     // 2. Call Gemini
     await supabase.from('jobs').update({ progress: 50, current_step: 'generating' }).eq('id', jobId);
     const prompt = buildFlashcardPrompt({ text: contextText, deckName: title, count, difficulty: normDifficulty, contentType: normContentType, sourceName: 'Document' });
-    const data = await callGeminiJson(prompt);
+    const data = await callOpenAiJson(prompt);
     const cards = normalizeCards(data.cards, normContentType);
 
-    if (cards.length === 0) throw new Error('Gemini failed to return valid flashcards.');
+    if (cards.length === 0) throw new Error('OpenAI failed to return valid flashcards.');
 
     // 3. Save via RPC
     await supabase.from('jobs').update({ progress: 85, current_step: 'validating' }).eq('id', jobId);
@@ -323,7 +327,7 @@ async function processNoteJob(jobId, documentId, userId, title, detail, selected
 
     await supabase.from('jobs').update({ progress: 50, current_step: 'generating' }).eq('id', jobId);
     const prompt = buildNotesPrompt({ text: contextText, noteName: title, detail, sourceName: 'Document' });
-    const data = await callGeminiJson(prompt);
+    const data = await callOpenAiJson(prompt);
     const note = normalizeNote(data, title, detail, 'Document');
 
     await supabase.from('jobs').update({ progress: 85, current_step: 'validating' }).eq('id', jobId);
@@ -1746,6 +1750,7 @@ app.get('/api/v1/assistant/sessions/:session_id', async (req, res) => {
 
 app.post('/api/v1/assistant/sessions/:session_id/messages', async (req, res) => {
   try {
+    ensureOpenAiKey();
     const { session_id } = req.params;
     const { message } = req.body;
     const userId = getUserIdFromRequest(req);
@@ -1803,12 +1808,12 @@ Question:
 ${message}
 `.trim();
 
-    const answer = await callGeminiText(prompt);
+    const answer = await callOpenAiText(prompt);
 
     // 4. Save assistant response
     const asstMsgId = crypto.randomUUID();
     await supabase.from('assistant_messages').insert({
-      id: asstMsgId, session_id, role: 'assistant', content: answer, model_name: GEMINI_MODEL
+      id: asstMsgId, session_id, role: 'assistant', content: answer, model_name: OPENAI_MODEL
     });
 
     // 5. Save citations
@@ -1901,6 +1906,7 @@ app.get('/api/v1/activity', async (req, res) => {
 app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => {
   try {
     ensureGeminiKeys();
+    ensureOpenAiKey();
     const file = ensureFile(req.file);
     const deckName = String(req.body.deckName || '').trim();
     const difficulty = normalizeDifficulty(req.body.difficulty);
@@ -1916,7 +1922,7 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
     // Save document thunk & embeddings to database
     const dbDoc = await saveDocumentToDb(userId, file.originalname, file.mimetype, file.size, extractedText);
 
-    // Generate material via Gemini
+    // Generate material via OpenAI
     const prompt = buildFlashcardPrompt({
       text: extractedText,
       deckName,
@@ -1925,11 +1931,11 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
       contentType,
       sourceName: file.originalname,
     });
-    const data = await callGeminiJson(prompt);
+    const data = await callOpenAiJson(prompt);
     const cards = normalizeCards(data.cards, contentType);
 
     if (cards.length === 0) {
-      return res.status(502).json({ error: 'Gemini returned no usable flashcards.' });
+      return res.status(502).json({ error: 'OpenAI returned no usable flashcards.' });
     }
 
     // Save flashcards to database using RPC
@@ -1968,6 +1974,7 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
 app.post('/api/generate/notes', upload.single('file'), async (req, res) => {
   try {
     ensureGeminiKeys();
+    ensureOpenAiKey();
     const file = ensureFile(req.file);
     const noteName = String(req.body.noteName || '').trim();
     const detail = normalizeDetail(req.body.detail);
@@ -1981,14 +1988,14 @@ app.post('/api/generate/notes', upload.single('file'), async (req, res) => {
     // Save document thunk & embeddings to database
     const dbDoc = await saveDocumentToDb(userId, file.originalname, file.mimetype, file.size, extractedText);
 
-    // Generate material via Gemini
+    // Generate material via OpenAI
     const prompt = buildNotesPrompt({
       text: extractedText,
       noteName,
       detail,
       sourceName: file.originalname,
     });
-    const data = await callGeminiJson(prompt);
+    const data = await callOpenAiJson(prompt);
     const note = normalizeNote(data, noteName, detail, file.originalname);
 
     // Save notes to database using RPC
@@ -2015,6 +2022,7 @@ app.post('/api/generate/notes', upload.single('file'), async (req, res) => {
 app.post('/api/assistant', async (req, res) => {
   try {
     ensureGeminiKeys();
+    ensureOpenAiKey();
     // Forward the caller's JWT so RLS on `resources`/`documents` evaluates auth.uid()
     // as the logged-in user. Without this the anon global client reads 0 rows and the
     // resource lookup below wrongly returns 403 "no document context access".
@@ -2114,7 +2122,7 @@ Document context:
 ${finalContext}
 `.trim();
 
-    const answer = await callGeminiText(prompt);
+    const answer = await callOpenAiText(prompt);
     res.json({ answer });
   } catch (error) {
     handleApiError(res, error);
@@ -2129,6 +2137,14 @@ ${finalContext}
 function ensureGeminiKeys() {
   if (GEMINI_KEYS.length === 0) {
     const err = new Error('No Gemini API keys are configured.');
+    err.status = 500;
+    throw err;
+  }
+}
+
+function ensureOpenAiKey() {
+  if (!OPENAI_KEY) {
+    const err = new Error('No OpenAI API key is configured.');
     err.status = 500;
     throw err;
   }
@@ -2336,6 +2352,75 @@ async function callGeminiText(prompt) {
 
   throw lastError || new Error('Gemini assistant request failed.');
 }
+
+async function callOpenAiJson(prompt) {
+  ensureOpenAiKey();
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_KEY}`
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload?.error?.message || `OpenAI request failed with ${response.status}`;
+      const err = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+
+    const rawText = payload?.choices?.[0]?.message?.content || '';
+    return JSON.parse(stripCodeFence(rawText));
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function callOpenAiText(prompt) {
+  ensureOpenAiKey();
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_KEY}`
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3
+      })
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload?.error?.message || `OpenAI request failed with ${response.status}`;
+      const err = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+
+    const rawText = payload?.choices?.[0]?.message?.content?.trim() || '';
+    if (!rawText) {
+      const err = new Error('OpenAI returned an empty assistant response.');
+      err.status = 502;
+      throw err;
+    }
+    return rawText;
+  } catch (error) {
+    throw error;
+  }
+}
+
 
 function stripCodeFence(text) {
   return String(text || '').replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
