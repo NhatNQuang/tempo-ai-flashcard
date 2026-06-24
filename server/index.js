@@ -2223,6 +2223,7 @@ Difficulty: ${difficulty}
 Content type: ${contentType}
 
 Rules:
+- You MUST generate EXACTLY ${count} flashcards. Do not generate fewer than ${count} under any circumstances. If the document is long, cover different parts of the document to reach the target count of ${count}.
 - Use only the document content.
 - Avoid generic filler.
 - Each card must be answerable from the document.
@@ -2251,6 +2252,7 @@ Document:
 ${text}
 `.trim();
 }
+
 
 function buildNotesPrompt({ text, noteName, detail, sourceName }) {
   return `
@@ -2366,7 +2368,8 @@ async function callOpenAiJson(prompt) {
         model: OPENAI_MODEL,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
-        response_format: { type: 'json_object' }
+        response_format: { type: 'json_object' },
+        max_completion_tokens: 16384
       })
     });
 
@@ -2397,7 +2400,8 @@ async function callOpenAiText(prompt) {
       body: JSON.stringify({
         model: OPENAI_MODEL,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3
+        temperature: 0.3,
+        max_completion_tokens: 16384
       })
     });
 
