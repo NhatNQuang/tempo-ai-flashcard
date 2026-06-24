@@ -11,7 +11,7 @@ const ws = require('ws');
 const app = express();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 const PORT = process.env.PORT || 3000;
@@ -1777,7 +1777,7 @@ app.post('/api/v1/assistant/sessions/:session_id/messages', async (req, res) => 
         const { data: matchedChunks } = await supabase.rpc('match_document_chunks', {
           query_embedding: queryEmbedding,
           match_threshold: 0.3,
-          match_count: 3,
+          match_count: 15,
           filter_document_id: session.document_id
         });
 
@@ -2083,7 +2083,7 @@ app.post('/api/assistant', async (req, res) => {
         const { data: matchedChunks, error: rpcError } = await supabase.rpc('match_document_chunks', {
           query_embedding: queryEmbedding,
           match_threshold: 0.3,
-          match_count: 5,
+          match_count: 20,
           filter_document_id: docId
         });
 
