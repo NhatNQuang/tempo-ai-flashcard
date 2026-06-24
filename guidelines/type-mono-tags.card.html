@@ -1,0 +1,30 @@
+<!-- @dsCard group="Type" viewport="700x150" name="Mono, eyebrows & tags" subtitle="JetBrains Mono numerics + uppercase labels" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--bg-base); display: flex; gap: 40px; align-items: center; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .mono { font-family: var(--font-mono); color: var(--text-primary); font-size: 15px; }
+  .mono small { color: var(--text-tertiary); }
+  .eyebrow { font: var(--text-eyebrow); text-transform: uppercase; letter-spacing: var(--ls-wider); color: var(--text-tertiary); }
+  .tag { display:inline-block; font-family: var(--font-sans); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 9px; border-radius: var(--radius-xs); }
+</style>
+</head>
+<body>
+  <div class="col">
+    <span class="eyebrow">Workspace</span>
+    <span class="eyebrow">AI Tools</span>
+    <span class="mono">142 <small>cards due</small></span>
+    <span class="mono">+22% <small>mastery</small></span>
+  </div>
+  <div class="col">
+    <span class="tag" style="background:rgba(139,92,246,0.16); color:var(--violet-300)">Detailed</span>
+    <span class="tag" style="background:var(--info-soft); color:var(--info-text)">Normal</span>
+    <span class="tag" style="background:var(--success-soft); color:var(--success-text)">Basic</span>
+    <span class="tag" style="background:var(--surface-3); color:var(--text-secondary)">Public</span>
+  </div>
+</body>
+</html>

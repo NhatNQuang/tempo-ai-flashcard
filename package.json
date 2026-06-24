@@ -1,0 +1,19 @@
+{
+  "name": "tempo-design-system",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "mammoth": "^1.8.0",
+    "multer": "^1.4.5-lts.2",
+    "officeparser": "^7.2.1",
+    "pdf-parse": "^1.1.1",
+    "ws": "^8.21.0"
+  }
+}

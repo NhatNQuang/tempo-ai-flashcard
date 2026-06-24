@@ -1,0 +1,10 @@
+.agents/
+.claude/
+.env
+docker-compose.yml
+node_modules/
+uploads/
+repro.cjs;C/
+repro_out;C/
+.thumbnail
+*.log

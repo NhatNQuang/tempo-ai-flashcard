@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Semantic / status" subtitle="Success, info, warning, danger" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--bg-base); }
+  .row { display: flex; gap: 12px; }
+  .sw { flex: 1; }
+  .chip { height: 48px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font: var(--text-label); }
+  .soft { height: 22px; border-radius: var(--radius-sm); margin-top: 6px; display: flex; align-items: center; padding: 0 10px; font: var(--text-caption); }
+  .name { font: var(--text-caption); color: var(--text-secondary); display: block; margin-top: 6px; }
+  .hex { font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--success); color:#04130c">Success</div><div class="soft" style="background:var(--success-soft); color:var(--success-text)">soft + text</div><span class="name">success <span class="hex">#3FD180</span></span></div>
+    <div class="sw"><div class="chip" style="background:var(--info); color:#04101f">Info</div><div class="soft" style="background:var(--info-soft); color:var(--info-text)">soft + text</div><span class="name">info <span class="hex">#5B9DF8</span></span></div>
+    <div class="sw"><div class="chip" style="background:var(--warning); color:#1a1203">Warning</div><div class="soft" style="background:var(--warning-soft); color:var(--warning-text)">soft + text</div><span class="name">warning <span class="hex">#F6B23C</span></span></div>
+    <div class="sw"><div class="chip" style="background:var(--danger); color:#1c0605">Danger</div><div class="soft" style="background:var(--danger-soft); color:var(--danger-text)">soft + text</div><span class="name">danger <span class="hex">#F0584F</span></span></div>
+  </div>
+</body>
+</html>

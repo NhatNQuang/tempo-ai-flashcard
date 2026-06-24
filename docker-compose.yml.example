@@ -1,0 +1,29 @@
+services:
+  tempo-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: tempo_design_system_ui
+    ports:
+      - "8085:80"
+    depends_on:
+      - tempo-api
+    restart: unless-stopped
+  tempo-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: tempo_design_system_api
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    # Put the real token in .env as CLOUDFLARE_TUNNEL_TOKEN (do NOT commit it).
+    # Copy this file to docker-compose.yml and it will be picked up from .env.
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - tempo-api
+      - tempo-ui

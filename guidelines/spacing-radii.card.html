@@ -1,0 +1,23 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Radii" subtitle="Corner radius tokens" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--bg-base); display: flex; gap: 16px; align-items: flex-end; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .box { width: 70px; height: 56px; background: var(--surface-2); border: 1px solid var(--border-strong); }
+  .n { font: var(--text-caption); color: var(--text-secondary); }
+  .v { font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+  <div class="col"><div class="box" style="border-radius:var(--radius-sm)"></div><span class="n">sm</span><span class="v">8px</span></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-md)"></div><span class="n">md · inputs</span><span class="v">10px</span></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-lg)"></div><span class="n">lg · cards</span><span class="v">14px</span></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-xl)"></div><span class="n">xl · panels</span><span class="v">18px</span></div>
+  <div class="col"><div class="box" style="border-radius:var(--radius-2xl)"></div><span class="n">2xl</span><span class="v">24px</span></div>
+  <div class="col"><div class="box" style="width:56px; border-radius:var(--radius-pill)"></div><span class="n">pill</span><span class="v">999px</span></div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+/* ============================================================
+   Tempo — Color Tokens
+   Dark-first product UI. Deep blue-black canvas, violet primary,
+   indigo→violet brand gradient, study-subject accents.
+   ============================================================ */
+:root {
+  /* ---- Brand / Violet primary scale ---- */
+  --violet-50:  #F3EFFF;
+  --violet-100: #E6DDFF;
+  --violet-200: #CCBBFB;
+  --violet-300: #B49CF8;
+  --violet-400: #A073F9;
+  --violet-500: #8B5CF6;  /* primary */
+  --violet-600: #7C4DE6;
+  --violet-700: #6A3CD0;
+  --violet-800: #4E2A99;
+  --violet-900: #2E1A5C;
+
+  /* ---- Indigo (brand-gradient start) ---- */
+  --indigo-400: #818CF8;
+  --indigo-500: #6366F1;
+  --indigo-600: #5457E0;
+
+  /* ---- Canvas & surfaces (blue-black) ---- */
+  --black:       #04060B;
+  --bg-sunken:   #070910;
+  --bg-base:     #0A0C13;
+  --surface-1:   #12151E;  /* default card */
+  --surface-2:   #181C28;  /* raised / nested */
+  --surface-3:   #202533;  /* hover / active row */
+  --surface-4:   #2A3140;  /* pressed / strong hover */
+
+  /* ---- Borders & hairlines ---- */
+  --border-subtle: #1C2130;
+  --border:        #262C3B;
+  --border-strong: #353D4F;
+  --border-violet: #7C4DE655;
+
+  /* ---- Text ---- */
+  --text-primary:   #F3F5FA;
+  --text-secondary: #99A1B3;
+  --text-tertiary:  #646C7E;
+  --text-disabled:  #424A5A;
+  --text-on-violet: #FFFFFF;
+
+  /* ---- Semantic / status ---- */
+  --success:       #3FD180;
+  --success-soft:  #34D39922;
+  --success-text:  #5BE39A;
+  --info:          #5B9DF8;
+  --info-soft:     #3B82F622;
+  --info-text:     #7CB4FB;
+  --warning:       #F6B23C;
+  --warning-soft:  #F59E0B22;
+  --warning-text:  #FBC664;
+  --danger:        #F0584F;
+  --danger-soft:   #EF444422;
+  --danger-text:   #F87C75;
+
+  /* ---- Subject / category accents (study spaces) ---- */
+  --subject-cs:      #8B5CF6;  /* Computer Science — violet */
+  --subject-math:    #5B9DF8;  /* Mathematics — blue */
+  --subject-science: #3FD180;  /* Science — green */
+  --subject-lang:    #F6B23C;  /* Languages — amber */
+  --subject-bio:     #2DD4BF;  /* Biology — teal */
+  --subject-physics: #F0584F;  /* Physics — coral */
+
+  /* ---- Chart series ---- */
+  --chart-1: #8B5CF6;  /* flashcards */
+  --chart-2: #5B9DF8;  /* notes */
+  --chart-3: #3FD180;  /* exams */
+  --chart-4: #F6B23C;  /* AI chat */
+
+  /* ============================================================
+     Semantic aliases — reference these in components
+     ============================================================ */
+  --color-bg:            var(--bg-base);
+  --color-canvas:        var(--bg-sunken);
+  --surface-card:        var(--surface-1);
+  --surface-raised:      var(--surface-2);
+  --surface-hover:       var(--surface-3);
+  --surface-pressed:     var(--surface-4);
+
+  --text-body:           var(--text-secondary);
+  --text-heading:        var(--text-primary);
+  --text-muted:          var(--text-tertiary);
+
+  --accent:              var(--violet-500);
+  --accent-hover:        var(--violet-400);
+  --accent-pressed:      var(--violet-600);
+  --accent-ring:         var(--violet-500);
+  --on-accent:           var(--text-on-violet);
+
+  --hairline:            var(--border);
+  --hairline-strong:     var(--border-strong);
+
+  /* ---- Brand gradients ---- */
+  --grad-brand:    linear-gradient(100deg, var(--indigo-500) 0%, var(--violet-400) 55%, #C264F5 100%);
+  --grad-violet:   linear-gradient(135deg, var(--violet-500) 0%, var(--violet-700) 100%);
+  --grad-cta:      linear-gradient(120deg, var(--violet-500) 0%, var(--indigo-500) 100%);
+  --grad-surface:  linear-gradient(180deg, #161A26 0%, #11141D 100%);
+}

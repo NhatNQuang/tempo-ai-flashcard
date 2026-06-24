@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Brand · Violet primary" subtitle="Core violet scale — 500 is primary" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--bg-base); }
+  .row { display: flex; gap: 10px; }
+  .sw { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .chip { height: 56px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.06); }
+  .name { font: var(--text-caption); color: var(--text-secondary); }
+  .hex { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-tertiary); }
+  .star { color: var(--violet-400); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--violet-300)"></div><span class="name">300</span><span class="hex">#B49CF8</span></div>
+    <div class="sw"><div class="chip" style="background:var(--violet-400)"></div><span class="name">400</span><span class="hex">#A073F9</span></div>
+    <div class="sw"><div class="chip" style="background:var(--violet-500); box-shadow: var(--glow-violet-sm)"></div><span class="name">500 <span class="star">★ primary</span></span><span class="hex">#8B5CF6</span></div>
+    <div class="sw"><div class="chip" style="background:var(--violet-600)"></div><span class="name">600</span><span class="hex">#7C4DE6</span></div>
+    <div class="sw"><div class="chip" style="background:var(--violet-700)"></div><span class="name">700</span><span class="hex">#6A3CD0</span></div>
+    <div class="sw"><div class="chip" style="background:var(--violet-900)"></div><span class="name">900</span><span class="hex">#2E1A5C</span></div>
+  </div>
+</body>
+</html>

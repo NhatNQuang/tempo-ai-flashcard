@@ -1,0 +1,127 @@
+<!-- @dsCard group="Landing Page" viewport="1440x900" name="Tempo Landing" subtitle="Marketing page with auth + pricing — entry point" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="ui_kits/tempo-landing/">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tempo — Smart Flashcards & Notes with AI</title>
+  <link rel="stylesheet" href="../../styles.css" />
+  <link rel="icon" href="../../assets/logo.png" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-base);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+
+
+    /* Auth spinner */
+    .auth-spinner {
+      width: 20px; height: 20px;
+      border: 2.5px solid rgba(255,255,255,0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: authSpin 0.6s linear infinite;
+    }
+    @keyframes authSpin { to { transform: rotate(360deg); } }
+
+    /* Smooth section reveals */
+    section { opacity: 0; transform: translateY(24px); animation: revealIn 0.7s ease forwards; }
+    section:nth-child(1) { animation-delay: 0.1s; }
+    section:nth-child(2) { animation-delay: 0.2s; }
+    section:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes revealIn { to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="DotField.jsx?v=20260615-1"></script>
+  <script type="text/babel" src="LandingNav.jsx?v=20260615-1"></script>
+  <script type="text/babel" src="HeroSection.jsx?v=20260615-1"></script>
+  <script type="text/babel" src="FeaturesSection.jsx?v=20260615-1"></script>
+  <script type="text/babel" src="PricingSection.jsx?v=20260615-1"></script>
+  <script type="text/babel" src="AuthModals.jsx?v=20260615-1"></script>
+  <script type="text/babel" src="FAQSection.jsx?v=20260615-1"></script>
+  <script type="text/babel" src="FooterSection.jsx?v=20260615-1"></script>
+
+  <script type="text/babel">
+    window.supabaseClient = null;
+    fetch('/api/v1/auth/config')
+      .then(res => res.json())
+      .then(resJson => {
+        if (resJson.success && resJson.data) {
+          window.supabaseClient = window.supabase.createClient(resJson.data.supabaseUrl, resJson.data.supabaseAnonKey);
+          console.log('Supabase client initialized.');
+        }
+      })
+      .catch(err => console.error('Failed to initialize Supabase client:', err));
+
+    function LandingPage() {
+      const [authMode, setAuthMode] = React.useState(null); // 'login' | 'signup' | null
+
+      // Hydrate Lucide after every render
+      React.useEffect(() => {
+        if (window.lucide) {
+          requestAnimationFrame(() => window.lucide.createIcons());
+        }
+      });
+
+      return (
+        <>
+          {/* Full-page DotField background — fixed behind all content */}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'auto' }}>
+            <DotField
+              dotRadius={2}
+              dotSpacing={18}
+              bulgeStrength={90}
+              glowRadius={220}
+              cursorRadius={450}
+              sparkle={true}
+              waveAmplitude={3}
+              gradientFrom="rgba(168, 130, 255, 0.55)"
+              gradientTo="rgba(140, 160, 255, 0.35)"
+              glowColor="#0A0C13"
+              _maxInteractionY={window.innerHeight}
+            />
+          </div>
+
+          {/* Content layer above the dot field */}
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <LandingNav
+              onLogin={() => setAuthMode('login')}
+              onSignup={() => setAuthMode('signup')}
+            />
+            <HeroSection onSignup={() => setAuthMode('signup')} />
+            <FeaturesSection />
+            <PricingSection onSignup={() => setAuthMode('signup')} />
+            <FAQSection />
+            <FooterSection />
+          </div>
+
+          {authMode && (
+            <AuthModal
+              mode={authMode}
+              onClose={() => setAuthMode(null)}
+              onSwitch={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+            />
+          )}
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<LandingPage />);
+  </script>
+</body>
+</html>

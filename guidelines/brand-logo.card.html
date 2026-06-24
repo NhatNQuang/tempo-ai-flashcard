@@ -1,0 +1,35 @@
+<!-- @dsCard group="Brand" viewport="700x200" name="Logo & wordmark" subtitle="App mark + TEMPO gradient wordmark" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 24px; background: var(--bg-base); display: flex; align-items: center; gap: 40px; }
+  .lockup { display: flex; align-items: center; gap: 16px; }
+  .mark { width: 64px; height: 64px; border-radius: 16px; }
+  .word { font-family: var(--font-display); font-weight: 700; font-size: 40px; letter-spacing: 0.06em; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+  .onlight { background: #fff; padding: 14px 18px; border-radius: var(--radius-lg); display: inline-flex; }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="lockup">
+      <img class="mark" src="../assets/logo.png" alt="Tempo logo" />
+      <span class="word tempo-gradient-text">TEMPO</span>
+    </div>
+    <span class="meta">Primary lockup · on dark canvas</span>
+  </div>
+  <div class="stack">
+    <div class="onlight">
+      <div class="lockup">
+        <img class="mark" style="width:44px;height:44px" src="../assets/logo.png" alt="Tempo logo" />
+        <span class="word" style="font-size:30px; color:#5457E0;">TEMPO</span>
+      </div>
+    </div>
+    <span class="meta">On light · wordmark falls back to indigo-600</span>
+  </div>
+</body>
+</html>

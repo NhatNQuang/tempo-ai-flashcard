@@ -1,0 +1,29 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Text & borders" subtitle="Text hierarchy + hairlines on dark" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--bg-base); display: flex; gap: 28px; }
+  .text-col > div { margin-bottom: 7px; font-family: var(--font-sans); font-size: 15px; }
+  .mono { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-tertiary); margin-left: 8px; }
+  .b-col { display: flex; flex-direction: column; gap: 12px; justify-content: center; min-width: 200px; }
+  .bar { height: 0; border-top: 1px solid; }
+  .lab { font: var(--text-caption); color: var(--text-secondary); }
+</style>
+</head>
+<body>
+  <div class="text-col">
+    <div style="color:var(--text-primary)">Primary heading text<span class="mono">--text-primary</span></div>
+    <div style="color:var(--text-secondary)">Secondary body copy<span class="mono">--text-secondary</span></div>
+    <div style="color:var(--text-tertiary)">Tertiary / captions<span class="mono">--text-tertiary</span></div>
+    <div style="color:var(--text-disabled)">Disabled text<span class="mono">--text-disabled</span></div>
+  </div>
+  <div class="b-col">
+    <div><div class="bar" style="border-color:var(--border-subtle)"></div><span class="lab">border-subtle</span></div>
+    <div><div class="bar" style="border-color:var(--border)"></div><span class="lab">border</span></div>
+    <div><div class="bar" style="border-color:var(--border-strong)"></div><span class="lab">border-strong</span></div>
+  </div>
+</body>
+</html>

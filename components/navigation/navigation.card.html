@@ -1,0 +1,56 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Navigation" subtitle="Tabs, Chip, NavItem" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px 24px; background: var(--bg-base); }
+  .lbl { font: var(--text-eyebrow); text-transform: uppercase; letter-spacing: var(--ls-wider); color: var(--text-tertiary); margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Tabs, Chip, NavItem } = window.TempoDesignSystem_e112f2;
+  const I = (n) => <i data-lucide={n} style={{ width: 18, height: 18 }}></i>;
+
+  function Demo() {
+    const [tab, setTab] = React.useState('overview');
+    const [chip, setChip] = React.useState('all');
+    return (
+      <div>
+        <div style={{ marginBottom: 18 }}>
+          <Tabs value={tab} onChange={setTab} items={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'spaces', label: 'Study Spaces' },
+            { id: 'cards', label: 'Flashcards', count: 128 },
+            { id: 'notes', label: 'Notes', count: 96 },
+            { id: 'exams', label: 'Exams' },
+          ]} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+          {['all','Computer Science','Mathematics','Science','Languages'].map(c => (
+            <Chip key={c} selected={chip === c} onClick={() => setChip(c)}>{c === 'all' ? 'All' : c}</Chip>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, maxWidth: 460 }}>
+          <NavItem icon={I('graduation-cap')} label="Learn" />
+          <NavItem icon={I('library')} label="Library" active />
+          <NavItem icon={I('compass')} label="Explore" />
+          <NavItem icon={I('users')} label="Groups" badge={2} />
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+  setTimeout(() => window.lucide && window.lucide.createIcons(), 30);
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Brand gradient" subtitle="Indigo→violet — wordmark, CTAs, progress fills" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--bg-base); display: flex; gap: 16px; }
+  .big { flex: 1; height: 92px; border-radius: var(--radius-lg); display: flex; align-items: flex-end; padding: 12px; }
+  .cap { font: var(--text-caption); color: rgba(255,255,255,0.9); }
+  .col { width: 150px; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+  .stop { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 16px; height: 16px; border-radius: 4px; }
+  .lab { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+  <div class="big" style="background: var(--grad-brand)"><span class="cap">--grad-brand</span></div>
+  <div class="big" style="background: var(--grad-cta)"><span class="cap">--grad-cta</span></div>
+  <div class="col">
+    <div class="stop"><span class="dot" style="background:var(--indigo-500)"></span><span class="lab">indigo-500 #6366F1</span></div>
+    <div class="stop"><span class="dot" style="background:var(--violet-400)"></span><span class="lab">violet-400 #A073F9</span></div>
+    <div class="stop"><span class="dot" style="background:#C264F5"></span><span class="lab">#C264F5</span></div>
+  </div>
+</body>
+</html>
