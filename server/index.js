@@ -277,9 +277,14 @@ async function processFlashcardJob(jobId, documentId, userId, title, count, diff
 
     // 2. Call Gemini
     await supabase.from('jobs').update({ progress: 50, current_step: 'generating' }).eq('id', jobId);
-    const prompt = buildFlashcardPrompt({ text: contextText, deckName: title, count, difficulty: normDifficulty, contentType: normContentType, sourceName: 'Document' });
-    const data = await callOpenAiJson(prompt);
-    const cards = normalizeCards(data.cards, normContentType);
+    const cards = await generateFlashcardsWithRetry({
+      text: contextText,
+      deckName: title,
+      count,
+      difficulty: normDifficulty,
+      contentType: normContentType,
+      sourceName: 'Document'
+    });
 
     if (cards.length === 0) throw new Error('OpenAI failed to return valid flashcards.');
 
@@ -1923,7 +1928,7 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
     const dbDoc = await saveDocumentToDb(userId, file.originalname, file.mimetype, file.size, extractedText);
 
     // Generate material via OpenAI
-    const prompt = buildFlashcardPrompt({
+    const cards = await generateFlashcardsWithRetry({
       text: extractedText,
       deckName,
       count,
@@ -1931,12 +1936,11 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
       contentType,
       sourceName: file.originalname,
     });
-    const data = await callOpenAiJson(prompt);
-    const cards = normalizeCards(data.cards, contentType);
 
     if (cards.length === 0) {
       return res.status(502).json({ error: 'OpenAI returned no usable flashcards.' });
     }
+
 
     // Save flashcards to database using RPC
     const { data: dbSet, error: saveError } = await supabase.rpc('rpc_save_flashcards', {
@@ -2481,6 +2485,82 @@ function normalizeCards(cards, contentType) {
 
   console.log(`normalizeCards: LLM returned ${cards.length} cards. After normalization and filtering, ${result.length} cards remain.`);
   return result;
+}
+
+async function generateFlashcardsWithRetry({ text, deckName, count, difficulty, contentType, sourceName }) {
+  const prompt = buildFlashcardPrompt({ text, deckName, count, difficulty, contentType, sourceName });
+  const data = await callOpenAiJson(prompt);
+  let cards = normalizeCards(data.cards, contentType);
+
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (cards.length < count && attempts < maxAttempts) {
+    attempts++;
+    const missingCount = count - cards.length;
+    console.log(`generateFlashcardsWithRetry: Under target count. Got ${cards.length}/${count}. Attempting to generate ${missingCount} more...`);
+
+    const existingQuestions = cards.map(c => c.question);
+    const retryPrompt = `
+You are generating additional study flashcards from a real uploaded document.
+We need exactly ${missingCount} more flashcards to reach our target of ${count}.
+
+Deck name: ${deckName}
+Source file: ${sourceName}
+Number of cards to generate now: ${missingCount}
+Difficulty: ${difficulty}
+Content type: ${contentType}
+
+Avoid these existing questions:
+${existingQuestions.map((q, idx) => `${idx + 1}. ${q}`).join('\n')}
+
+Rules:
+- You MUST generate EXACTLY ${missingCount} flashcards.
+- Do not repeat any of the existing questions listed above.
+- Use only the document content.
+- Every card must include exactly 4 answer options.
+- Return strict JSON only.
+- Output language: You MUST generate in the same language as the provided Document.
+
+Return this shape:
+{
+  "cards": [
+    {
+      "type": "multiple_choice" | "situation",
+      "question": "string",
+      "options": ["string", "string", "string", "string"],
+      "correctOption": "A" | "B" | "C" | "D",
+      "answer": "Option A",
+      "explanation": "string"
+    }
+  ]
+}
+
+Document:
+${text}
+`.trim();
+
+    try {
+      const retryData = await callOpenAiJson(retryPrompt);
+      const newCards = normalizeCards(retryData.cards, contentType);
+      const uniqueNewCards = newCards.filter(nc => !existingQuestions.includes(nc.question));
+      
+      if (uniqueNewCards.length > 0) {
+        cards = cards.concat(uniqueNewCards);
+        console.log(`generateFlashcardsWithRetry: Successfully added ${uniqueNewCards.length} new unique cards. Total now: ${cards.length}/${count}.`);
+      } else {
+        console.log(`generateFlashcardsWithRetry: No new unique cards generated in attempt ${attempts}.`);
+      }
+    } catch (err) {
+      console.error(`generateFlashcardsWithRetry: Error during attempt ${attempts}:`, err);
+    }
+  }
+
+  if (cards.length > count) {
+    cards = cards.slice(0, count);
+  }
+
+  return cards;
 }
 
 
