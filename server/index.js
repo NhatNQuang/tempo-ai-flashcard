@@ -2431,13 +2431,36 @@ function stripCodeFence(text) {
 }
 
 function normalizeCards(cards, contentType) {
-  if (!Array.isArray(cards)) return [];
+  if (!Array.isArray(cards)) {
+    console.log("normalizeCards: Input cards is not an array");
+    return [];
+  }
 
-  return cards.map((card, index) => {
-    const normalizedOptions = Array.isArray(card.options)
-      ? card.options.map(option => String(option || '').trim()).filter(Boolean).slice(0, 4)
-      : [];
-    const correctOption = ['A', 'B', 'C', 'D'].includes(card.correctOption) ? card.correctOption : 'A';
+  const result = cards.map((card, index) => {
+    // Robustly extract options (supporting both array and object formats)
+    let optionsArray = [];
+    if (Array.isArray(card.options)) {
+      optionsArray = card.options;
+    } else if (card.options && typeof card.options === 'object') {
+      optionsArray = Object.keys(card.options)
+        .sort()
+        .map(k => card.options[k]);
+    }
+
+    const normalizedOptions = optionsArray
+      .map(option => String(option || '').trim())
+      .filter(Boolean)
+      .slice(0, 4);
+
+    // Normalize correctOption (supporting lowercase and prefix matching like 'Option A' or 'a')
+    let correctOption = 'A';
+    if (card.correctOption) {
+      const match = String(card.correctOption).trim().match(/^[A-D]/i);
+      if (match) {
+        correctOption = match[0].toUpperCase();
+      }
+    }
+
     const type = card.type === 'situation'
       ? 'situation'
       : contentType === 'Situation'
@@ -2455,7 +2478,11 @@ function normalizeCards(cards, contentType) {
       starred: false,
     };
   }).filter(card => card.question && card.options.length === 4);
+
+  console.log(`normalizeCards: LLM returned ${cards.length} cards. After normalization and filtering, ${result.length} cards remain.`);
+  return result;
 }
+
 
 function normalizeNote(data, noteName, detail, sourceName) {
   const cues = Array.isArray(data.cues) ? data.cues.map(item => String(item || '').trim()).filter(Boolean) : [];
