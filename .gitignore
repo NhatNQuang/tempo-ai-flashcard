@@ -8,3 +8,4 @@ repro.cjs;C/
 repro_out;C/
 .thumbnail
 *.log
+.vercel/

@@ -2593,6 +2593,10 @@ function handleApiError(res, error) {
   res.status(status).json({ error: error.message || 'Unexpected server error.' });
 }
 
-app.listen(PORT, () => {
-  console.log(`Tempo API listening on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Tempo API listening on port ${PORT}`);
+  });
+}
+
+module.exports = app;
