@@ -24,6 +24,21 @@ const GEMINI_KEYS = [
 const OPENAI_KEY = process.env.OPENAI_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
+// ─── LLM provider (DeepSeek by default, OpenAI as fallback) ──────
+// DeepSeek exposes an OpenAI-compatible /chat/completions endpoint.
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API || process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_API_BASE = (process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com').replace(/\/$/, '');
+// deepseek-chat / deepseek-reasoner are deprecated 2026-07-24; use v4 names.
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+
+const LLM_PROVIDER = (process.env.LLM_PROVIDER || (DEEPSEEK_KEY ? 'deepseek' : 'openai')).toLowerCase();
+const LLM_IS_DEEPSEEK = LLM_PROVIDER === 'deepseek';
+const LLM_KEY = LLM_IS_DEEPSEEK ? DEEPSEEK_KEY : OPENAI_KEY;
+const LLM_MODEL = LLM_IS_DEEPSEEK ? DEEPSEEK_MODEL : OPENAI_MODEL;
+const LLM_ENDPOINT = LLM_IS_DEEPSEEK
+  ? `${DEEPSEEK_API_BASE}/chat/completions`
+  : 'https://api.openai.com/v1/chat/completions';
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const APP_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:8085').replace(/\/$/, '');
@@ -73,6 +88,9 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
+    llmProvider: LLM_PROVIDER,
+    llmModel: LLM_MODEL,
+    llmConfigured: !!LLM_KEY,
     openaiModel: OPENAI_MODEL,
     openaiConfigured: !!OPENAI_KEY,
     geminiEmbeddingModel: 'gemini-embedding-001',
@@ -1857,7 +1875,7 @@ ${message}
     // 4. Save assistant response
     const asstMsgId = crypto.randomUUID();
     await supabase.from('assistant_messages').insert({
-      id: asstMsgId, session_id, role: 'assistant', content: answer, model_name: OPENAI_MODEL
+      id: asstMsgId, session_id, role: 'assistant', content: answer, model_name: LLM_MODEL
     });
 
     // 5. Save citations
@@ -2208,8 +2226,8 @@ function ensureGeminiKeys() {
 }
 
 function ensureOpenAiKey() {
-  if (!OPENAI_KEY) {
-    const err = new Error('No OpenAI API key is configured.');
+  if (!LLM_KEY) {
+    const err = new Error(`No ${LLM_IS_DEEPSEEK ? 'DeepSeek' : 'OpenAI'} API key is configured.`);
     err.status = 500;
     throw err;
   }
@@ -2420,67 +2438,59 @@ async function callGeminiText(prompt) {
   throw lastError || new Error('Gemini assistant request failed.');
 }
 
-async function callOpenAiJson(prompt) {
-  ensureOpenAiKey();
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_KEY}`
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-        max_completion_tokens: 16384
-      })
-    });
+// Builds the provider-specific request body. DeepSeek is OpenAI-compatible but:
+//  - uses `max_tokens` (not `max_completion_tokens`)
+//  - defaults to thinking mode ON, which we disable for these generation tasks
+//    (much faster/cheaper, and thinking mode ignores `temperature` anyway)
+function buildLlmBody(prompt, { json }) {
+  const body = {
+    model: LLM_MODEL,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.3,
+  };
+  if (json) body.response_format = { type: 'json_object' };
 
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const message = payload?.error?.message || `OpenAI request failed with ${response.status}`;
-      const err = new Error(message);
-      err.status = response.status;
-      throw err;
-    }
-
-    const rawText = payload?.choices?.[0]?.message?.content || '';
-    return JSON.parse(stripCodeFence(rawText));
-  } catch (error) {
-    throw error;
+  if (LLM_IS_DEEPSEEK) {
+    body.max_tokens = 8192;
+    body.thinking = { type: 'disabled' };
+  } else {
+    body.max_completion_tokens = 16384;
   }
+  return body;
+}
+
+async function callLlm(prompt, { json }) {
+  ensureOpenAiKey();
+  const response = await fetch(LLM_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${LLM_KEY}`
+    },
+    body: JSON.stringify(buildLlmBody(prompt, { json }))
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const providerName = LLM_IS_DEEPSEEK ? 'DeepSeek' : 'OpenAI';
+    const message = payload?.error?.message || `${providerName} request failed with ${response.status}`;
+    const err = new Error(message);
+    err.status = response.status;
+    throw err;
+  }
+  return payload?.choices?.[0]?.message?.content || '';
+}
+
+async function callOpenAiJson(prompt) {
+  const rawText = await callLlm(prompt, { json: true });
+  return JSON.parse(stripCodeFence(rawText));
 }
 
 async function callOpenAiText(prompt) {
-  ensureOpenAiKey();
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_KEY}`
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        max_completion_tokens: 16384
-      })
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const message = payload?.error?.message || `OpenAI request failed with ${response.status}`;
-      const err = new Error(message);
-      err.status = response.status;
-      throw err;
-    }
-
-    const rawText = payload?.choices?.[0]?.message?.content?.trim() || '';
+    const rawText = (await callLlm(prompt, { json: false })).trim();
     if (!rawText) {
-      const err = new Error('OpenAI returned an empty assistant response.');
+      const err = new Error(`${LLM_IS_DEEPSEEK ? 'DeepSeek' : 'OpenAI'} returned an empty assistant response.`);
       err.status = 502;
       throw err;
     }
