@@ -27,7 +27,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How does the yearly billing work?',
-    a: 'The yearly plan is billed as a single payment of 300,000đ per year (equivalent to 25,000đ/month). This saves you 29% compared to the monthly plan at 35,000đ/month.',
+    a: 'The yearly plan is billed as a single payment of 299,000đ per year (equivalent to ~25,000đ/month). This saves you 29% compared to the monthly plan at 35,000đ/month.',
   },
   {
     q: 'Do I need to create an account to try Tempo?',

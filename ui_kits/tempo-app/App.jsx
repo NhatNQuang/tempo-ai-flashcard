@@ -301,6 +301,35 @@ function App() {
         const configJson = await configRes.json();
         if (configJson.success && configJson.data) {
           window.supabaseClient = window.supabase.createClient(configJson.data.supabaseUrl, configJson.data.supabaseAnonKey);
+
+          const currentUrl = new URL(window.location.href);
+          const authCode = currentUrl.searchParams.get('code');
+          const authHash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+          const accessToken = authHash.get('access_token');
+          const refreshToken = authHash.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            const { error: setSessionError } = await window.supabaseClient.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (setSessionError) {
+              console.error('Failed to restore OAuth session from hash in App:', setSessionError);
+            } else {
+              window.history.replaceState({}, document.title, currentUrl.pathname + currentUrl.search);
+            }
+          }
+
+          if (authCode) {
+            const { error: exchangeError } = await window.supabaseClient.auth.exchangeCodeForSession(window.location.href);
+            if (exchangeError) {
+              console.error('Failed to exchange OAuth code in App:', exchangeError);
+            } else {
+              currentUrl.searchParams.delete('code');
+              currentUrl.searchParams.delete('type');
+              window.history.replaceState({}, document.title, currentUrl.pathname + currentUrl.search + currentUrl.hash);
+            }
+          }
           
           // Check session
           const { data: { session } } = await window.supabaseClient.auth.getSession();

@@ -26,6 +26,14 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:8085').replace(/\/$/, '');
+
+const POLAR_ACCESS_TOKEN = process.env.POLAR_ACCESS_TOKEN;
+const POLAR_WEBHOOK_SECRET = process.env.POLAR_WEBHOOK_SECRET;
+const POLAR_ORGANIZATION_ID = process.env.POLAR_ORGANIZATION_ID;
+const POLAR_PRO_MONTHLY_PRODUCT_ID = process.env.POLAR_PRO_MONTHLY_PRODUCT_ID;
+const POLAR_PRO_YEARLY_PRODUCT_ID = process.env.POLAR_PRO_YEARLY_PRODUCT_ID;
+const POLAR_API_BASE = process.env.POLAR_API_BASE || 'https://sandbox-api.polar.sh/v1';
 
 // Initialize Supabase Client
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -37,7 +45,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000000';
 
-app.use(express.json({ limit: '2mb' }));
+app.use((req, res, next) => {
+  if (req.path === '/api/v1/polar/webhook') {
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    express.json({ limit: '2mb' })(req, res, next);
+  }
+});
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -46,7 +60,8 @@ app.get('/api/health', (req, res) => {
     openaiConfigured: !!OPENAI_KEY,
     geminiEmbeddingModel: 'gemini-embedding-001',
     geminiKeysConfigured: GEMINI_KEYS.length,
-    supabaseConfigured: !!(SUPABASE_URL && SUPABASE_KEY)
+    supabaseConfigured: !!(SUPABASE_URL && SUPABASE_KEY),
+    polarConfigured: !!(POLAR_ACCESS_TOKEN && POLAR_WEBHOOK_SECRET),
   });
 });
 
@@ -2587,6 +2602,189 @@ function normalizeNote(data, noteName, detail, sourceName) {
     summary,
   };
 }
+
+// ─── Polar Billing ───────────────────────────────────────────────
+
+function verifyPolarWebhook(rawBody, headers) {
+  const webhookId = headers['webhook-id'];
+  const webhookTimestamp = headers['webhook-timestamp'];
+  const webhookSignature = headers['webhook-signature'];
+
+  if (!webhookId || !webhookTimestamp || !webhookSignature) return false;
+
+  const ts = parseInt(webhookTimestamp, 10);
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - ts) > 300) return false;
+
+  const secret = POLAR_WEBHOOK_SECRET;
+  const secretBytes = Buffer.from(secret.split('_').pop(), 'base64');
+  const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
+  const computed = crypto
+    .createHmac('sha256', secretBytes)
+    .update(signedContent)
+    .digest('base64');
+
+  const signatures = webhookSignature.split(' ');
+  return signatures.some((sig) => {
+    const sigValue = sig.startsWith('v1,') ? sig.slice(3) : sig;
+    return crypto.timingSafeEqual(
+      Buffer.from(computed),
+      Buffer.from(sigValue)
+    );
+  });
+}
+
+async function isProUser(userId) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('plan')
+    .eq('id', userId)
+    .single();
+  return data?.plan === 'pro';
+}
+
+app.post('/api/v1/polar/webhook', async (req, res) => {
+  try {
+    const rawBody = req.body.toString('utf8');
+    if (!verifyPolarWebhook(rawBody, req.headers)) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
+    const event = JSON.parse(rawBody);
+    const type = event.type;
+    const sub = event.data;
+
+    const activatingEvents = [
+      'subscription.created',
+      'subscription.active',
+      'subscription.updated',
+      'subscription.uncanceled',
+    ];
+    const deactivatingEvents = [
+      'subscription.canceled',
+      'subscription.revoked',
+    ];
+
+    if (activatingEvents.includes(type) || deactivatingEvents.includes(type)) {
+      const plan = deactivatingEvents.includes(type) ? 'free' : 'pro';
+      const status = deactivatingEvents.includes(type) ? (type === 'subscription.revoked' ? 'revoked' : 'canceled') : (sub.status || 'active');
+      const email = sub.customer?.email;
+
+      if (!email) {
+        return res.status(200).json({ received: true, skipped: 'no customer email' });
+      }
+
+      const { data: result, error } = await supabase.rpc('rpc_upsert_subscription', {
+        p_email: email,
+        p_polar_customer_id: sub.customer?.id || null,
+        p_polar_subscription_id: sub.id,
+        p_polar_product_id: sub.product_id || sub.product?.id || '',
+        p_status: status,
+        p_current_period_start: sub.current_period_start || null,
+        p_current_period_end: sub.current_period_end || null,
+        p_cancel_at_period_end: sub.cancel_at_period_end || false,
+        p_plan: plan,
+      });
+
+      if (error) {
+        console.error('Webhook RPC error:', error);
+        return res.status(500).json({ error: 'Failed to process subscription' });
+      }
+
+      return res.status(200).json({ received: true, processed: type, result });
+    }
+
+    return res.status(200).json({ received: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    return res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+app.post('/api/v1/billing/checkout', async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (userId === DEFAULT_USER_ID) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    const { interval } = req.body;
+    const productId = interval === 'year'
+      ? POLAR_PRO_YEARLY_PRODUCT_ID
+      : POLAR_PRO_MONTHLY_PRODUCT_ID;
+
+    if (!productId) {
+      return res.status(500).json({ success: false, error: 'Billing not configured' });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .single();
+
+    if (!profile?.email) {
+      return res.status(400).json({ success: false, error: 'User email not found' });
+    }
+
+    const response = await fetch(`${POLAR_API_BASE}/checkouts`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${POLAR_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        products: [productId],
+        customer_email: profile.email,
+        success_url: `${APP_BASE_URL}/billing/success`,
+      }),
+    });
+
+    const checkout = await response.json();
+
+    if (!response.ok) {
+      console.error('Polar checkout error:', checkout);
+      return res.status(502).json({ success: false, error: 'Failed to create checkout session' });
+    }
+
+    return res.json({ success: true, checkout_url: checkout.url });
+  } catch (err) {
+    console.error('Checkout error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+app.get('/api/v1/billing/subscription', async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (userId === DEFAULT_USER_ID) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', userId)
+      .single();
+
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return res.json({
+      success: true,
+      plan: profile?.plan || 'free',
+      subscription: subscription || null,
+    });
+  } catch (err) {
+    console.error('Subscription status error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 function handleApiError(res, error) {
   const status = error.status && Number.isInteger(error.status) ? error.status : 500;

@@ -2,6 +2,35 @@
 
 function PricingSection({ onSignup }) {
   const [yearly, setYearly] = React.useState(true);
+  const [checkoutLoading, setCheckoutLoading] = React.useState(false);
+
+  const handleUpgrade = async () => {
+    if (!window.supabaseClient) return onSignup();
+    try {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (!session) return onSignup();
+      setCheckoutLoading(true);
+      const res = await fetch('/api/v1/billing/checkout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ interval: yearly ? 'year' : 'month' }),
+      });
+      const json = await res.json();
+      if (json.success && json.checkout_url) {
+        window.open(json.checkout_url, '_blank');
+      } else {
+        alert(json.error || 'Failed to start checkout');
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      alert('Something went wrong.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   const toggleStyle = (on) => ({
     padding: '7px 18px', borderRadius: 'var(--radius-pill)',
@@ -73,12 +102,12 @@ function PricingSection({ onSignup }) {
           desc="For serious students"
           price={yearly ? '25,000' : '35,000'}
           unit="đ/month"
-          yearlyNote={yearly ? 'Billed 300,000đ/year' : null}
+          yearlyNote={yearly ? 'Billed 299,000đ/year' : null}
           originalPrice={yearly ? '35,000' : null}
           popular
-          cta="Upgrade to Pro"
+          cta={checkoutLoading ? 'Processing...' : 'Upgrade to Pro'}
           ctaVariant="gradient"
-          onCta={onSignup}
+          onCta={handleUpgrade}
           features={[
             { text: 'Unlimited flashcards & notes', included: true },
             { text: 'Unlimited Tempo Assistant', included: true },

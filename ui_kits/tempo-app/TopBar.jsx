@@ -4,6 +4,9 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
   const [showPopup, setShowPopup] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
   const [showChangePassword, setShowChangePassword] = React.useState(false);
+  const [showBillingPlans, setShowBillingPlans] = React.useState(false);
+  const [billingInterval, setBillingInterval] = React.useState('year');
+  const [checkoutLoading, setCheckoutLoading] = React.useState(false);
   
   const [settingsTab, setSettingsTab] = React.useState('profile'); // 'subscription' | 'profile' | 'appearance' | 'privacy'
   const [editingUsername, setEditingUsername] = React.useState(false);
@@ -236,7 +239,61 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
     }
   };
 
-  const isPro = userProfile?.role === 'premium' || userProfile?.role === 'admin';
+  const isPro = userProfile?.plan === 'pro' || userProfile?.role === 'admin';
+
+  const handleUpgrade = () => {
+    setShowBillingPlans(true);
+  };
+
+  const handleStartCheckout = async (interval = billingInterval) => {
+    try {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (!session) return alert('Please log in first.');
+      setCheckoutLoading(true);
+      const res = await fetch('/api/v1/billing/checkout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ interval }),
+      });
+      const json = await res.json();
+      if (json.success && json.checkout_url) {
+        setShowBillingPlans(false);
+        window.open(json.checkout_url, '_blank');
+      } else {
+        alert(json.error || 'Failed to start checkout');
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      alert('Something went wrong. Please try again.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const upgradeButtonStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 32,
+    padding: '0 12px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 13,
+    fontWeight: 'var(--fw-semibold)',
+    letterSpacing: '-0.005em',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid transparent',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'var(--t-colors), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) var(--ease-standard)',
+    userSelect: 'none',
+    background: 'var(--grad-cta)',
+    color: 'var(--on-accent)',
+    boxShadow: 'var(--glow-violet-sm)',
+  };
 
   return (
     <>
@@ -257,7 +314,14 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
           {!isPro && (
-            <Button variant="primary" size="sm" iconLeft={<Icon name="crown" size={14} />}>{t('upgrade_pro')}</Button>
+            <button
+              type="button"
+              onClick={handleUpgrade}
+              style={upgradeButtonStyle}
+            >
+              <Icon name="crown" size={14} />
+              {t('upgrade_pro')}
+            </button>
           )}
           
           {/* Profile Button */}
@@ -457,7 +521,14 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
                     </p>
                   </div>
                   {!isPro && (
-                    <Button variant="primary" iconLeft={<Icon name="crown" size={15} />}>{t('upgrade_pro')}</Button>
+                    <button
+                      type="button"
+                      onClick={handleUpgrade}
+                      style={{ ...upgradeButtonStyle, height: 40, width: '100%' }}
+                    >
+                      <Icon name="crown" size={15} />
+                      {t('upgrade_pro')}
+                    </button>
                   )}
                 </div>
               )}
@@ -605,6 +676,20 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
         document.body
       )}
 
+      {showBillingPlans && ReactDOM.createPortal(
+        <BillingPlansModal
+          yearly={billingInterval === 'year'}
+          checkoutLoading={checkoutLoading}
+          isPro={isPro}
+          onClose={() => {
+            if (!checkoutLoading) setShowBillingPlans(false);
+          }}
+          onSelectInterval={(isYearly) => setBillingInterval(isYearly ? 'year' : 'month')}
+          onChoosePlan={() => handleStartCheckout(billingInterval)}
+        />,
+        document.body
+      )}
+
       {/* Change Password Dialog */}
       {showChangePassword && ReactDOM.createPortal(
         <div style={{
@@ -648,6 +733,219 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
         document.body
       )}
     </>
+  );
+}
+
+function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectInterval, onChoosePlan }) {
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !checkoutLoading) onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [checkoutLoading, onClose]);
+
+  const toggleStyle = (active) => ({
+    padding: '7px 18px',
+    borderRadius: 'var(--radius-pill)',
+    fontSize: 13.5,
+    fontWeight: 700,
+    cursor: 'pointer',
+    border: 'none',
+    fontFamily: 'var(--font-sans)',
+    background: active ? 'var(--violet-500)' : 'transparent',
+    color: active ? '#fff' : 'var(--text-secondary)',
+    transition: 'var(--t-colors)',
+  });
+
+  return (
+    <div
+      onClick={() => {
+        if (!checkoutLoading) onClose();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 260,
+        background: 'rgba(4,6,11,0.72)',
+        backdropFilter: 'blur(16px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 'min(960px, 100%)',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          background: 'var(--surface-1)',
+          border: '1px solid var(--border-strong)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: 'var(--shadow-xl)',
+          padding: '28px 28px 32px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16, marginBottom: 28 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 'var(--ls-wider)', color: 'var(--violet-400)', marginBottom: 10 }}>
+              Pricing
+            </div>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 4vw, 40px)', lineHeight: 1.05, color: 'var(--text-primary)' }}>
+              Choose the right Tempo plan
+            </h3>
+            <p style={{ margin: '10px 0 0', color: 'var(--text-secondary)', font: 'var(--text-body-lg)' }}>
+              Compare Free and Pro, then continue to Polar checkout when you are ready.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={checkoutLoading}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: checkoutLoading ? 'wait' : 'pointer' }}
+          >
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+
+        <div style={{
+          display: 'inline-flex', alignItems: 'center',
+          background: 'var(--surface-2)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-pill)', padding: 3, marginBottom: 28,
+        }}>
+          <button type="button" onClick={() => onSelectInterval(false)} style={toggleStyle(!yearly)}>Monthly</button>
+          <button type="button" onClick={() => onSelectInterval(true)} style={toggleStyle(yearly)}>
+            Yearly
+            <span style={{
+              marginLeft: 6, padding: '2px 8px',
+              background: 'rgba(63,209,128,0.18)', color: 'var(--success-text)',
+              borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
+            }}>-29%</span>
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+          <BillingPlanCard
+            name="Free"
+            desc="Perfect for getting started"
+            price="0"
+            unit="/month"
+            buttonLabel={!isPro ? 'Current plan' : 'Available'}
+            buttonVariant="outline"
+            buttonDisabled
+            features={[
+              { text: '50 flashcards per week', included: true },
+              { text: '5 notes per week', included: true },
+              { text: 'Upload DOCX files only (max 3 MB)', included: true },
+              { text: '10 Tempo Assistant uses', included: true },
+              { text: 'Basic study analytics', included: true },
+              { text: '24/7 priority support', included: false },
+              { text: 'Unlimited flashcards & notes', included: false },
+              { text: 'PDF & PPTX upload', included: false },
+            ]}
+          />
+          <BillingPlanCard
+            name="Pro"
+            desc="For serious students"
+            price={yearly ? '25,000' : '35,000'}
+            unit="đ/month"
+            yearlyNote={yearly ? 'Billed 299,000đ/year' : null}
+            originalPrice={yearly ? '35,000' : null}
+            popular
+            buttonLabel={checkoutLoading ? 'Connecting to Polar...' : (isPro ? 'Manage current plan' : 'Choose the Plan')}
+            buttonVariant="gradient"
+            buttonDisabled={checkoutLoading}
+            onButtonClick={onChoosePlan}
+            features={[
+              { text: 'Unlimited flashcards & notes', included: true },
+              { text: 'Unlimited Tempo Assistant', included: true },
+              { text: 'Upload DOCX, PDF, PPTX (max 10 MB)', included: true },
+              { text: '24/7 priority support', included: true },
+              { text: 'Advanced analytics & insights', included: true },
+              { text: 'Study groups & collaboration', included: true },
+              { text: 'Export & share materials', included: true },
+              { text: 'Early access to new features', included: true },
+            ]}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BillingPlanCard({ name, desc, price, unit, yearlyNote, originalPrice, popular, buttonLabel, buttonVariant, buttonDisabled, onButtonClick, features }) {
+  const isGradient = buttonVariant === 'gradient';
+  return (
+    <div style={{
+      position: 'relative',
+      background: popular ? 'var(--surface-2)' : 'var(--surface-1)',
+      border: `1.5px solid ${popular ? 'var(--violet-500)' : 'var(--border)'}`,
+      borderRadius: 'var(--radius-xl)',
+      padding: '32px 28px',
+      boxShadow: popular ? '0 0 0 1px var(--violet-600), 0 20px 60px -16px rgba(139,92,246,0.32)' : 'var(--shadow-sm)',
+    }}>
+      {popular && (
+        <div style={{
+          position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
+          padding: '5px 18px', borderRadius: 'var(--radius-pill)',
+          background: 'var(--grad-brand)', color: '#fff',
+          fontSize: 12, fontWeight: 700, letterSpacing: '0.03em',
+          whiteSpace: 'nowrap', boxShadow: 'var(--glow-violet-sm)',
+        }}>Most popular</div>
+      )}
+
+      <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 24, color: 'var(--text-primary)', margin: '0 0 4px' }}>{name}</h4>
+      <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px' }}>{desc}</p>
+
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+        {originalPrice && (
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 24, color: 'var(--text-tertiary)', textDecoration: 'line-through' }}>{originalPrice}</span>
+        )}
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 48, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{price}</span>
+        <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-tertiary)' }}>{unit}</span>
+      </div>
+      {yearlyNote && (
+        <p style={{ fontSize: 13, color: 'var(--violet-300)', fontWeight: 500, margin: '4px 0 0' }}>{yearlyNote}</p>
+      )}
+
+      <button
+        type="button"
+        onClick={onButtonClick}
+        disabled={buttonDisabled}
+        style={{
+          width: '100%', height: 48, marginTop: 24, marginBottom: 28,
+          background: isGradient ? 'var(--grad-brand)' : 'transparent',
+          color: isGradient ? '#fff' : 'var(--text-primary)',
+          border: isGradient ? 'none' : '1.5px solid var(--border-strong)',
+          borderRadius: 'var(--radius-md)',
+          fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: 15,
+          cursor: buttonDisabled ? 'not-allowed' : 'pointer',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+          boxShadow: isGradient ? '0 8px 28px -6px rgba(139,92,246,0.45)' : 'none',
+          opacity: buttonDisabled ? 0.7 : 1,
+        }}
+      >
+        {buttonLabel}
+      </button>
+
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {features.map((f, i) => (
+          <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, lineHeight: 1.45 }}>
+            <span style={{
+              width: 20, height: 20, flex: '0 0 20px', borderRadius: '50%', marginTop: 1,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              background: f.included ? 'rgba(63,209,128,0.15)' : 'rgba(100,108,126,0.12)',
+              color: f.included ? 'var(--success-text)' : 'var(--text-disabled)',
+            }}>
+              <i data-lucide={f.included ? 'check' : 'x'} style={{ width: 12, height: 12 }}></i>
+            </span>
+            <span style={{ color: f.included ? 'var(--text-primary)' : 'var(--text-disabled)' }}>{f.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

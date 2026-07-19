@@ -1,4 +1,71 @@
-// Tempo landing — Login & Sign-up modals
+function LucideIcon({ name, size = 16, style }) {
+  const iconProps = {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: '2',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    style,
+  };
+
+  const paths = {
+    x: (
+      <>
+        <path d="M18 6L6 18" />
+        <path d="M6 6l12 12" />
+      </>
+    ),
+    mail: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M3 7l9 6 9-6" />
+      </>
+    ),
+    user: (
+      <>
+        <path d="M20 21a8 8 0 0 0-16 0" />
+        <circle cx="12" cy="8" r="4" />
+      </>
+    ),
+    lock: (
+      <>
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V8a4 4 0 1 1 8 0v3" />
+      </>
+    ),
+    eye: (
+      <>
+        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    ),
+    'eye-off': (
+      <>
+        <path d="M10.7 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.2 3.1" />
+        <path d="M6.6 6.7C3.6 8.4 2 12 2 12s3.5 7 10 7a9.8 9.8 0 0 0 5.4-1.5" />
+        <path d="M14.1 14.1A3 3 0 0 1 9.9 9.9" />
+        <path d="M3 3l18 18" />
+      </>
+    ),
+    'arrow-right': (
+      <>
+        <path d="M5 12h14" />
+        <path d="M13 5l7 7-7 7" />
+      </>
+    ),
+  };
+
+  return (
+    <svg {...iconProps}>
+      {paths[name] || paths.x}
+    </svg>
+  );
+}
+
+// Tempo landing - Login & Sign-up modals
 
 function AuthModal({ mode, onClose, onSwitch }) {
   const isLogin = mode === 'login';
@@ -18,7 +85,7 @@ function AuthModal({ mode, onClose, onSwitch }) {
   const handleGoogleLogin = async (e) => {
     if (e) e.preventDefault();
     if (!window.supabaseClient) {
-      alert('Dịch vụ xác thực đang khởi tạo. Vui lòng thử lại sau giây lát.');
+      alert('Dich vu xac thuc dang khoi tao. Vui long thu lai sau giay lat.');
       return;
     }
     setLoading(true);
@@ -31,7 +98,7 @@ function AuthModal({ mode, onClose, onSwitch }) {
       });
       if (error) throw error;
     } catch (err) {
-      alert('Đăng nhập Google thất bại: ' + err.message);
+      alert('Dang nhap Google that bai: ' + err.message);
       setLoading(false);
     }
   };
@@ -39,13 +106,13 @@ function AuthModal({ mode, onClose, onSwitch }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!window.supabaseClient) {
-      alert('Dịch vụ xác thực đang khởi tạo. Vui lòng thử lại sau.');
+      alert('Dich vu xac thuc dang khoi tao. Vui long thu lai sau.');
       return;
     }
     setLoading(true);
     try {
       if (isLogin) {
-        const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+        const { error } = await window.supabaseClient.auth.signInWithPassword({
           email,
           password
         });
@@ -67,12 +134,12 @@ function AuthModal({ mode, onClose, onSwitch }) {
         if (data.session) {
           window.location.href = '/ui_kits/tempo-app/index.html';
         } else {
-          alert('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản của bạn.');
+          alert('Dang ky thanh cong! Vui long kiem tra email de xac nhan tai khoan cua ban.');
           setLoading(false);
         }
       }
     } catch (err) {
-      alert('Xác thực thất bại: ' + err.message);
+      alert('Xac thuc that bai: ' + err.message);
       setLoading(false);
     }
   };
@@ -107,18 +174,16 @@ function AuthModal({ mode, onClose, onSwitch }) {
         borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xl)',
         padding: '36px 32px 32px',
       }}>
-        {/* Close */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
           <button onClick={onClose} style={{
             width: 32, height: 32, background: 'transparent', border: 'none',
             borderRadius: 'var(--radius-sm)', color: 'var(--text-tertiary)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <i data-lucide="x" style={{ width: 18, height: 18 }}></i>
+            <LucideIcon name="x" size={18} />
           </button>
         </div>
 
-        {/* Logo + heading */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <img src="../../assets/logo.png" alt="Tempo" style={{ width: 48, height: 48, borderRadius: 'var(--radius-md)', marginBottom: 16 }} />
           <h2 style={{
@@ -130,7 +195,6 @@ function AuthModal({ mode, onClose, onSwitch }) {
           </p>
         </div>
 
-        {/* Google button */}
         <button onClick={handleGoogleLogin} style={{
           width: '100%', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           background: 'var(--surface-2)', color: 'var(--text-primary)',
@@ -144,34 +208,30 @@ function AuthModal({ mode, onClose, onSwitch }) {
           Continue with Google
         </button>
 
-        {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '22px 0' }}>
           <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 500 }}>or</span>
           <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Email */}
           <div style={inputWrap}>
             <label style={labelStyle}>Email</label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none', display: 'flex' }}>
-                <i data-lucide="mail" style={{ width: 16, height: 16 }}></i>
+                <LucideIcon name="mail" size={16} />
               </span>
               <input type="email" placeholder="name@example.com" value={email} onChange={e => setEmail(e.target.value)}
                 style={{ ...inputStyle, paddingLeft: 40 }} onFocus={inputFocus} onBlur={inputBlur} required />
             </div>
           </div>
 
-          {/* Username — sign up only */}
           {!isLogin && (
             <div style={inputWrap}>
               <label style={labelStyle}>Username</label>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none', display: 'flex' }}>
-                  <i data-lucide="user" style={{ width: 16, height: 16 }}></i>
+                  <LucideIcon name="user" size={16} />
                 </span>
                 <input type="text" placeholder="Choose a username" value={username} onChange={e => setUsername(e.target.value)}
                   style={{ ...inputStyle, paddingLeft: 40 }} onFocus={inputFocus} onBlur={inputBlur} required />
@@ -179,7 +239,6 @@ function AuthModal({ mode, onClose, onSwitch }) {
             </div>
           )}
 
-          {/* Password */}
           <div style={inputWrap}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={labelStyle}>Password</label>
@@ -191,7 +250,7 @@ function AuthModal({ mode, onClose, onSwitch }) {
             </div>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)', pointerEvents: 'none', display: 'flex' }}>
-                <i data-lucide="lock" style={{ width: 16, height: 16 }}></i>
+                <LucideIcon name="lock" size={16} />
               </span>
               <input type={showPw ? 'text' : 'password'} placeholder={isLogin ? 'Enter your password' : 'Create a password'} value={password} onChange={e => setPassword(e.target.value)}
                 style={{ ...inputStyle, paddingLeft: 40, paddingRight: 42 }} onFocus={inputFocus} onBlur={inputBlur} required />
@@ -201,12 +260,11 @@ function AuthModal({ mode, onClose, onSwitch }) {
                 borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--text-tertiary)',
               }}>
-                <i data-lucide={showPw ? 'eye-off' : 'eye'} style={{ width: 16, height: 16 }}></i>
+                <LucideIcon name={showPw ? 'eye-off' : 'eye'} size={16} />
               </button>
             </div>
           </div>
 
-          {/* Submit */}
           <button type="submit" disabled={loading} style={{
             width: '100%', height: 48, marginTop: 4,
             background: 'var(--grad-brand)', color: '#fff',
@@ -225,13 +283,12 @@ function AuthModal({ mode, onClose, onSwitch }) {
             ) : (
               <>
                 {isLogin ? 'Sign in' : 'Create account'}
-                <i data-lucide="arrow-right" style={{ width: 16, height: 16 }}></i>
+                <LucideIcon name="arrow-right" size={16} />
               </>
             )}
           </button>
         </form>
 
-        {/* Switch */}
         <p style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--text-secondary)', marginTop: 22 }}>
           {isLogin ? "Don't have an account? " : 'Already have an account? '}
           <a href="#" onClick={(e) => { e.preventDefault(); onSwitch(); }}
@@ -255,4 +312,4 @@ function GoogleIcon() {
   );
 }
 
-Object.assign(window, { AuthModal, GoogleIcon });
+Object.assign(window, { AuthModal, GoogleIcon, LucideIcon });
