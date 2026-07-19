@@ -1961,6 +1961,12 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
     }
 
     const userId = getUserIdFromRequest(req);
+
+    const uploadBlock = await checkUploadAllowed(userId, file);
+    if (uploadBlock) return res.status(uploadBlock.status).json(uploadBlock.body);
+    const quotaBlock = await checkQuota(userId, 'flashcards');
+    if (quotaBlock) return res.status(quotaBlock.status).json(quotaBlock.body);
+
     const extractedText = await extractTextFromBuffer(file.originalname, file.buffer);
 
     // Save document thunk & embeddings to database
@@ -2026,6 +2032,12 @@ app.post('/api/generate/notes', upload.single('file'), async (req, res) => {
     }
 
     const userId = getUserIdFromRequest(req);
+
+    const uploadBlock = await checkUploadAllowed(userId, file);
+    if (uploadBlock) return res.status(uploadBlock.status).json(uploadBlock.body);
+    const quotaBlock = await checkQuota(userId, 'notes');
+    if (quotaBlock) return res.status(quotaBlock.status).json(quotaBlock.body);
+
     const extractedText = await extractTextFromBuffer(file.originalname, file.buffer);
 
     // Save document thunk & embeddings to database
@@ -2079,6 +2091,10 @@ app.post('/api/assistant', async (req, res) => {
     if (!question) {
       return res.status(400).json({ error: 'Question is required.' });
     }
+
+    const assistantUserId = getUserIdFromRequest(req);
+    const assistantQuotaBlock = await checkQuota(assistantUserId, 'assistant_messages');
+    if (assistantQuotaBlock) return res.status(assistantQuotaBlock.status).json(assistantQuotaBlock.body);
 
     let ragContext = '';
     let usedRag = false;
@@ -2166,6 +2182,12 @@ ${finalContext}
 `.trim();
 
     const answer = await callOpenAiText(prompt);
+    // Log metered usage for Free-plan quota (best-effort, don't block response)
+    if (assistantUserId !== DEFAULT_USER_ID) {
+      supabase.rpc('rpc_log_ai_usage', { p_user_id: assistantUserId, p_kind: 'assistant_messages' })
+        .then(({ error }) => { if (error) console.error('log assistant usage error:', error); });
+    }
+
     res.json({ answer });
   } catch (error) {
     handleApiError(res, error);
@@ -2680,6 +2702,105 @@ async function isProUser(userId) {
   if (data.plan === 'pro') return true;
   return !!(data.pro_until && new Date(data.pro_until) > new Date());
 }
+
+// ─── Free-plan quotas & gating ───────────────────────────────────
+
+const FREE_LIMITS = {
+  flashcards: 50,       // AI cards generated per week
+  notes: 5,             // AI notes generated per week
+  assistant_messages: 10,
+  max_file_bytes: 3 * 1024 * 1024,
+  allowed_extensions: ['docx'],
+};
+const PRO_MAX_FILE_BYTES = 10 * 1024 * 1024;
+const PRO_ALLOWED_EXTENSIONS = ['docx', 'pdf', 'pptx'];
+
+async function getWeeklyUsage(userId) {
+  const { data, error } = await supabase.rpc('rpc_get_weekly_usage', { p_user_id: userId });
+  if (error) {
+    console.error('weekly usage RPC error:', error);
+    return { flashcards: 0, notes: 0, assistant_messages: 0 };
+  }
+  return data;
+}
+
+function fileExtension(filename) {
+  const m = String(filename || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+  return m ? m[1] : '';
+}
+
+// Returns null if allowed; otherwise a { status, body } to send back.
+async function checkUploadAllowed(userId, file) {
+  const pro = await isProUser(userId);
+  const ext = fileExtension(file.originalname);
+  const allowedExts = pro ? PRO_ALLOWED_EXTENSIONS : FREE_LIMITS.allowed_extensions;
+  const maxBytes = pro ? PRO_MAX_FILE_BYTES : FREE_LIMITS.max_file_bytes;
+
+  if (!allowedExts.includes(ext)) {
+    return {
+      status: 403,
+      body: {
+        error: pro
+          ? `Unsupported file type: .${ext}`
+          : `Định dạng .${ext} chỉ dành cho gói Pro. Gói Free hỗ trợ DOCX.`,
+        code: 'PLAN_LIMIT', limit_type: 'file_format', upgrade: !pro,
+      },
+    };
+  }
+  if (file.size > maxBytes) {
+    const mb = Math.round(maxBytes / (1024 * 1024));
+    return {
+      status: 403,
+      body: {
+        error: `File vượt giới hạn ${mb} MB của gói ${pro ? 'Pro' : 'Free'}.`,
+        code: 'PLAN_LIMIT', limit_type: 'file_size', upgrade: !pro,
+      },
+    };
+  }
+  return null;
+}
+
+// Returns null if allowed; otherwise a { status, body } for over-quota.
+async function checkQuota(userId, kind) {
+  if (await isProUser(userId)) return null;
+  const usage = await getWeeklyUsage(userId);
+  const used = usage[kind] || 0;
+  if (used >= FREE_LIMITS[kind]) {
+    return {
+      status: 403,
+      body: {
+        error: 'Đã đạt giới hạn gói Free trong tuần này.',
+        code: 'PLAN_LIMIT', limit_type: kind,
+        used, limit: FREE_LIMITS[kind], upgrade: true,
+      },
+    };
+  }
+  return null;
+}
+
+app.get('/api/v1/billing/usage', async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (userId === DEFAULT_USER_ID) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+    const pro = await isProUser(userId);
+    const usage = await getWeeklyUsage(userId);
+    return res.json({
+      success: true,
+      plan: pro ? 'pro' : 'free',
+      limits: pro ? null : {
+        flashcards: FREE_LIMITS.flashcards,
+        notes: FREE_LIMITS.notes,
+        assistant_messages: FREE_LIMITS.assistant_messages,
+      },
+      usage,
+    });
+  } catch (err) {
+    console.error('usage error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 // ─── payOS (VietQR prepaid) ──────────────────────────────────────
 

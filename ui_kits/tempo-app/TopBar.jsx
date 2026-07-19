@@ -7,6 +7,8 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
   const [showBillingPlans, setShowBillingPlans] = React.useState(false);
   const [billingInterval, setBillingInterval] = React.useState('year');
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
+  const [paywallMessage, setPaywallMessage] = React.useState(null);
+  const [usage, setUsage] = React.useState(null);
   
   const [settingsTab, setSettingsTab] = React.useState('profile'); // 'subscription' | 'profile' | 'appearance' | 'privacy'
   const [editingUsername, setEditingUsername] = React.useState(false);
@@ -241,7 +243,44 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
 
   const isPro = userProfile?.plan === 'pro' || userProfile?.role === 'admin';
 
+  const PLAN_LIMIT_MESSAGES = {
+    flashcards: 'Bạn đã dùng hết 50 flashcards AI trong tuần này. Nâng Pro để tạo không giới hạn.',
+    notes: 'Bạn đã dùng hết 5 notes AI trong tuần này. Nâng Pro để tạo không giới hạn.',
+    assistant_messages: 'Bạn đã dùng hết 10 lượt Tempo Assistant tuần này. Nâng Pro để chat không giới hạn.',
+    file_format: 'Định dạng PDF & PPTX chỉ dành cho gói Pro. Nâng cấp để mở khóa.',
+    file_size: 'File lớn hơn giới hạn gói Free (3 MB). Nâng Pro để tải tệp tới 10 MB.',
+  };
+
+  const fetchUsage = React.useCallback(async () => {
+    try {
+      if (!window.supabaseClient) return;
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/v1/billing/usage', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      });
+      const json = await res.json();
+      if (json.success) setUsage(json);
+    } catch (_) { /* silent */ }
+  }, []);
+
+  React.useEffect(() => {
+    if (!isPro) fetchUsage();
+  }, [isPro, fetchUsage]);
+
+  React.useEffect(() => {
+    const onPaywall = (e) => {
+      const lt = e.detail?.limit_type;
+      setPaywallMessage(PLAN_LIMIT_MESSAGES[lt] || 'Tính năng này yêu cầu gói Pro.');
+      setShowBillingPlans(true);
+      fetchUsage();
+    };
+    window.addEventListener('tempo:paywall', onPaywall);
+    return () => window.removeEventListener('tempo:paywall', onPaywall);
+  }, [fetchUsage]);
+
   const handleUpgrade = () => {
+    setPaywallMessage(null);
     setShowBillingPlans(true);
   };
 
@@ -389,8 +428,28 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
                 </div>
               </div>
               
+              {!isPro && usage && usage.usage && usage.limits && (
+                <>
+                  <div style={{ height: 1, background: 'var(--border)' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '2px 2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Sử dụng tuần này</span>
+                      <button onClick={handleUpgrade} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
+                        background: 'var(--grad-brand)', color: '#fff', border: 'none',
+                        borderRadius: 'var(--radius-pill)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                      }}><Icon name="crown" size={10} /> Pro</button>
+                    </div>
+                    <UsageBar label="Flashcards" used={usage.usage.flashcards} limit={usage.limits.flashcards} />
+                    <UsageBar label="Notes" used={usage.usage.notes} limit={usage.limits.notes} />
+                    <UsageBar label="Assistant" used={usage.usage.assistant_messages} limit={usage.limits.assistant_messages} />
+                    <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>Làm mới vào thứ Hai hằng tuần</div>
+                  </div>
+                </>
+              )}
+
               <div style={{ height: 1, background: 'var(--border)' }} />
-              
+
               <button onClick={handleLogOut} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
                 background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)',
@@ -681,8 +740,9 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
           yearly={billingInterval === 'year'}
           checkoutLoading={checkoutLoading}
           isPro={isPro}
+          contextMessage={paywallMessage}
           onClose={() => {
-            if (!checkoutLoading) setShowBillingPlans(false);
+            if (!checkoutLoading) { setShowBillingPlans(false); setPaywallMessage(null); }
           }}
           onSelectInterval={(isYearly) => setBillingInterval(isYearly ? 'year' : 'month')}
           onChoosePlan={() => handleStartCheckout(billingInterval)}
@@ -737,7 +797,7 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
   );
 }
 
-function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectInterval, onChoosePlan, onChooseQrPlan }) {
+function BillingPlansModal({ yearly, checkoutLoading, isPro, contextMessage, onClose, onSelectInterval, onChoosePlan, onChooseQrPlan }) {
   React.useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape' && !checkoutLoading) onClose();
@@ -798,7 +858,7 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectIn
               Choose the right Tempo plan
             </h3>
             <p style={{ margin: '10px 0 0', color: 'var(--text-secondary)', font: 'var(--text-body-lg)' }}>
-              Compare Free and Pro, then continue to Polar checkout when you are ready.
+              Compare Free and Pro, then continue to checkout when you are ready.
             </p>
           </div>
           <button
@@ -810,6 +870,18 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectIn
             <Icon name="x" size={18} />
           </button>
         </div>
+
+        {contextMessage && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22,
+            padding: '12px 16px', borderRadius: 'var(--radius-md)',
+            background: 'rgba(139,92,246,0.12)', border: '1px solid var(--violet-500)',
+            color: 'var(--text-primary)', fontSize: 14, fontWeight: 500,
+          }}>
+            <Icon name="crown" size={16} />
+            <span>{contextMessage}</span>
+          </div>
+        )}
 
         <div style={{
           display: 'inline-flex', alignItems: 'center',
@@ -873,6 +945,24 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectIn
             ]}
           />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function UsageBar({ label, used, limit }) {
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  const near = pct >= 80;
+  const full = used >= limit;
+  const barColor = full ? 'var(--danger-text)' : near ? 'var(--warning-text, #e0a516)' : 'var(--violet-500)';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5 }}>
+        <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+        <span style={{ color: full ? 'var(--danger-text)' : 'var(--text-tertiary)', fontWeight: 600 }}>{used}/{limit}</span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: 'var(--surface-3)', overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: barColor, transition: 'width 0.3s ease' }} />
       </div>
     </div>
   );

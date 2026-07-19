@@ -134,6 +134,14 @@ async function requestGeneratedMaterial(endpoint, fields) {
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    if (payload && payload.code === 'PLAN_LIMIT') {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tempo:paywall', { detail: payload }));
+      }
+      const err = new Error(payload.error || 'Đã đạt giới hạn gói Free.');
+      err.code = 'PLAN_LIMIT';
+      throw err;
+    }
     throw new Error(parseErrorMessage(payload, 'Tempo AI could not process this document.'));
   }
   return payload;
@@ -1504,6 +1512,9 @@ function TempoAssistant({ context, open, onClose, variant }) {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (payload && payload.code === 'PLAN_LIMIT') {
+          window.dispatchEvent(new CustomEvent('tempo:paywall', { detail: payload }));
+        }
         throw new Error(payload.error || (window.currentLanguage === 'vi' ? 'Tempo AI không thể trả lời lúc này.' : 'Tempo AI could not answer right now.'));
       }
 
