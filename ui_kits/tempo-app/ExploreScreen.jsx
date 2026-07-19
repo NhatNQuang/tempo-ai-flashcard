@@ -126,7 +126,7 @@ function ExploreScreen() {
         setTimeout(() => setToastMessage(''), 4000);
         closePreview();
       } else {
-        alert(resJson.error?.message || 'Failed to import resource.');
+        toast({ body: resJson.error?.message || 'Không import được tài nguyên.', type: 'error' });
       }
     } catch (err) {
       console.error('Import failed:', err);

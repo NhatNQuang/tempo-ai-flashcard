@@ -47,12 +47,13 @@
 <body>
   <div id="root"></div>
 
+  <script type="text/babel" src="../shared/Feedback.jsx?v=20260719-1"></script>
   <script type="text/babel" src="DotField.jsx?v=20260615-1"></script>
   <script type="text/babel" src="LandingNav.jsx?v=20260615-1"></script>
   <script type="text/babel" src="HeroSection.jsx?v=20260615-1"></script>
   <script type="text/babel" src="FeaturesSection.jsx?v=20260615-1"></script>
-  <script type="text/babel" src="PricingSection.jsx?v=20260716-1"></script>
-  <script type="text/babel" src="AuthModals.jsx?v=20260628-2"></script>
+  <script type="text/babel" src="PricingSection.jsx?v=20260719-2"></script>
+  <script type="text/babel" src="AuthModals.jsx?v=20260719-2"></script>
   <script type="text/babel" src="FAQSection.jsx?v=20260615-1"></script>
   <script type="text/babel" src="FooterSection.jsx?v=20260615-1"></script>
 
@@ -164,6 +165,8 @@
               onSwitch={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
             />
           )}
+
+          <TempoFeedback.ToastHost />
         </>
       );
     }

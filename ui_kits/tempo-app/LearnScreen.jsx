@@ -520,7 +520,7 @@ function UploadFlow({ onSessionReady }) {
 
   async function triggerGenerateDecks() {
     if (!file) return setError('Please upload a document first');
-    if (!fcName.trim()) return alert('Please specify a deck name');
+    if (!fcName.trim()) return toast({ body: 'Hãy đặt tên cho bộ thẻ.', type: 'error' });
     const count = fcCount === -1 ? Math.max(1, parseInt(fcCustom, 10) || 10) : fcCount;
 
     try {
@@ -551,7 +551,7 @@ function UploadFlow({ onSessionReady }) {
 
   async function triggerGenerateNotes() {
     if (!file) return setError('Please upload a document first');
-    if (!noteName.trim()) return alert('Please specify a note name');
+    if (!noteName.trim()) return toast({ body: 'Hãy đặt tên cho ghi chú.', type: 'error' });
 
     try {
       setSubmitting(true);

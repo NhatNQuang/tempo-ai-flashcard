@@ -798,44 +798,22 @@ function PublicDialog({ item, noun, onClose, onConfirm }) {
 }
 
 function DeleteConfirm({ item, noun, onCancel, onConfirm }) {
-  const { Button } = window.TempoDesignSystem_e112f2;
   const t = window.t;
+  const { AlertDialog } = window.TempoFeedback;
 
-  React.useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onCancel]);
-
+  // Astryx: destructive confirmations use AlertDialog — no backdrop/Escape
+  // dismissal, the user must make an explicit choice.
   return (
-    <div onMouseDown={onCancel} style={{
-      position: 'fixed', inset: 0, zIndex: 110,
-      background: 'rgba(4,6,11,0.7)', backdropFilter: 'var(--blur-sm)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-    }}>
-      <div onMouseDown={(e) => e.stopPropagation()} role="alertdialog" style={{
-        width: 400, background: 'var(--surface-1)',
-        border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-xl)',
-        boxShadow: 'var(--shadow-xl)', padding: 22,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <span style={{ width: 38, height: 38, flex: '0 0 38px', borderRadius: 'var(--radius-md)', background: 'var(--danger-soft)', color: 'var(--danger-text)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="trash-2" size={18} />
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ font: 'var(--text-h3)', fontSize: 17, color: 'var(--text-primary)' }}>{t('delete_confirm_title')}</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 6, lineHeight: 1.45 }}>
-              "<span style={{ color: 'var(--text-primary)' }}>{item?.title}</span>" {t('delete_confirm_desc')}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 22 }}>
-          <Button variant="ghost" onClick={onCancel}>{t('cancel')}</Button>
-          <Button variant="danger" iconLeft={<Icon name="trash-2" size={15} />} onClick={onConfirm}>{t('delete_btn')}</Button>
-        </div>
-      </div>
-    </div>
+    <AlertDialog
+      isOpen={true}
+      onOpenChange={(open) => { if (!open) onCancel(); }}
+      title={t('delete_confirm_title')}
+      description={`"${item?.title || ''}" ${t('delete_confirm_desc')}`}
+      confirmLabel={t('delete_btn')}
+      cancelLabel={t('cancel')}
+      onConfirm={onConfirm}
+      isDestructive
+    />
   );
 }
 

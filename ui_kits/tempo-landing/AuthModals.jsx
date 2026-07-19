@@ -85,7 +85,7 @@ function AuthModal({ mode, onClose, onSwitch }) {
   const handleGoogleLogin = async (e) => {
     if (e) e.preventDefault();
     if (!window.supabaseClient) {
-      alert('Dich vu xac thuc dang khoi tao. Vui long thu lai sau giay lat.');
+      toast({ body: 'Dịch vụ xác thực đang khởi tạo. Vui lòng thử lại sau giây lát.', type: 'error' });
       return;
     }
     setLoading(true);
@@ -98,7 +98,7 @@ function AuthModal({ mode, onClose, onSwitch }) {
       });
       if (error) throw error;
     } catch (err) {
-      alert('Dang nhap Google that bai: ' + err.message);
+      toast({ body: 'Đăng nhập Google thất bại: ' + err.message, type: 'error' });
       setLoading(false);
     }
   };
@@ -106,7 +106,7 @@ function AuthModal({ mode, onClose, onSwitch }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!window.supabaseClient) {
-      alert('Dich vu xac thuc dang khoi tao. Vui long thu lai sau.');
+      toast({ body: 'Dịch vụ xác thực đang khởi tạo. Vui lòng thử lại sau.', type: 'error' });
       return;
     }
     setLoading(true);
@@ -134,12 +134,12 @@ function AuthModal({ mode, onClose, onSwitch }) {
         if (data.session) {
           window.location.href = '/ui_kits/tempo-app/index.html';
         } else {
-          alert('Dang ky thanh cong! Vui long kiem tra email de xac nhan tai khoan cua ban.');
+          toast({ body: 'Đăng ký thành công! Kiểm tra email để xác nhận tài khoản.', type: 'success', autoHideDuration: 8000 });
           setLoading(false);
         }
       }
     } catch (err) {
-      alert('Xac thuc that bai: ' + err.message);
+      toast({ body: 'Xác thực thất bại: ' + err.message, type: 'error' });
       setLoading(false);
     }
   };

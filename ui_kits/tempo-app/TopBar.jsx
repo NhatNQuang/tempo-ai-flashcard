@@ -188,13 +188,13 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
         if (resJson.success) {
           setUserProfile(resJson.data);
           setEditingUsername(false);
-          alert(t('save_success') || 'Profile updated successfully!');
+          toast({ body: t('save_success') || 'Đã cập nhật hồ sơ.', type: 'success' });
         } else {
           throw new Error(resJson.error?.message || 'Update failed');
         }
       }
     } catch (e) {
-      alert('Failed to update username/name: ' + e.message);
+      toast({ body: 'Cập nhật tên thất bại: ' + e.message, type: 'error' });
     } finally {
       setProfileLoading(false);
     }
@@ -209,9 +209,9 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
       
       setUserProfile(p => ({ ...p, email: emailInput }));
       setEditingEmail(false);
-      alert(t('email_update_sent') || 'Email update confirmation sent. Please check both your old and new email addresses to complete the change.');
+      toast({ body: t('email_update_sent') || 'Đã gửi email xác nhận. Kiểm tra cả hộp thư cũ và mới để hoàn tất.', type: 'success', autoHideDuration: 8000 });
     } catch (e) {
-      alert('Failed to update email: ' + e.message);
+      toast({ body: 'Cập nhật email thất bại: ' + e.message, type: 'error' });
     } finally {
       setProfileLoading(false);
     }
@@ -220,7 +220,7 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
   const handleChangePwSubmit = async (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      alert(t('password_mismatch') || 'Confirm password does not match.');
+      toast({ body: t('password_mismatch') || 'Mật khẩu xác nhận không khớp.', type: 'error' });
       return;
     }
     setPwLoading(true);
@@ -229,13 +229,13 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
       const { error } = await window.supabaseClient.auth.updateUser({ password: newPassword });
       if (error) throw error;
       
-      alert(t('password_change_success') || 'Password updated successfully!');
+      toast({ body: t('password_change_success') || 'Đã đổi mật khẩu.', type: 'success' });
       setShowChangePassword(false);
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      alert('Failed to change password: ' + err.message);
+      toast({ body: 'Đổi mật khẩu thất bại: ' + err.message, type: 'error' });
     } finally {
       setPwLoading(false);
     }
@@ -287,7 +287,7 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
   const handleStartCheckout = async (interval = billingInterval, endpoint = '/api/v1/billing/checkout') => {
     try {
       const { data: { session } } = await window.supabaseClient.auth.getSession();
-      if (!session) return alert('Please log in first.');
+      if (!session) return toast({ body: 'Vui lòng đăng nhập trước.', type: 'error' });
       setCheckoutLoading(true);
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -302,11 +302,11 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
         setShowBillingPlans(false);
         window.open(json.checkout_url, '_blank');
       } else {
-        alert(json.error || 'Failed to start checkout');
+        toast({ body: json.error || 'Không khởi tạo được thanh toán.', type: 'error' });
       }
     } catch (err) {
       console.error('Checkout error:', err);
-      alert('Something went wrong. Please try again.');
+      toast({ body: 'Có lỗi xảy ra. Vui lòng thử lại.', type: 'error' });
     } finally {
       setCheckoutLoading(false);
     }
@@ -735,7 +735,8 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
         document.body
       )}
 
-      {showBillingPlans && ReactDOM.createPortal(
+      {/* Dialog portals itself — no outer createPortal needed */}
+      {showBillingPlans && (
         <BillingPlansModal
           yearly={billingInterval === 'year'}
           checkoutLoading={checkoutLoading}
@@ -747,29 +748,24 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
           onSelectInterval={(isYearly) => setBillingInterval(isYearly ? 'year' : 'month')}
           onChoosePlan={() => handleStartCheckout(billingInterval)}
           onChooseQrPlan={() => handleStartCheckout(billingInterval, '/api/v1/billing/payos/checkout')}
-        />,
-        document.body
+        />
       )}
 
-      {/* Change Password Dialog */}
-      {showChangePassword && ReactDOM.createPortal(
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 300,
-          background: 'rgba(4,6,11,0.7)', backdropFilter: 'var(--blur-sm)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
-        }}>
-          <form onSubmit={handleChangePwSubmit} style={{
-            width: 400, background: 'var(--surface-1)',
-            border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-xl)',
-            boxShadow: 'var(--shadow-xl)', padding: 24, display: 'flex', flexDirection: 'column', gap: 16
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <h4 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>{t('change_password')}</h4>
-              <button type="button" onClick={() => setShowChangePassword(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}>
-                <Icon name="x" size={16} />
-              </button>
-            </div>
-
+      {/* Change Password — purpose="form" so a stray backdrop click can't discard input */}
+      <TempoFeedback.Dialog
+        isOpen={showChangePassword}
+        onOpenChange={(open) => { if (!open) setShowChangePassword(false); }}
+        width={420}
+        purpose="form"
+        labelledBy="change-pw-title"
+      >
+        <form onSubmit={handleChangePwSubmit} style={{ display: 'contents' }}>
+          <TempoFeedback.DialogHeader
+            id="change-pw-title"
+            title={t('change_password')}
+            onOpenChange={(open) => { if (!open) setShowChangePassword(false); }}
+          />
+          <TempoFeedback.DialogBody>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>{t('current_password')}</label>
@@ -784,15 +780,13 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
                 <Input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
               </div>
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-              <Button type="button" variant="ghost" onClick={() => setShowChangePassword(false)}>{t('cancel')}</Button>
-              <Button type="submit" variant="primary" disabled={pwLoading}>{t('save')}</Button>
-            </div>
-          </form>
-        </div>,
-        document.body
-      )}
+          </TempoFeedback.DialogBody>
+          <TempoFeedback.DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setShowChangePassword(false)}>{t('cancel')}</Button>
+            <Button type="submit" variant="primary" disabled={pwLoading}>{t('save')}</Button>
+          </TempoFeedback.DialogFooter>
+        </form>
+      </TempoFeedback.Dialog>
     </>
   );
 }
@@ -820,41 +814,26 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, contextMessage, onC
   });
 
   return (
-    <div
-      onClick={() => {
-        if (!checkoutLoading) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 260,
-        background: 'rgba(4,6,11,0.72)',
-        backdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      }}
+    <TempoFeedback.Dialog
+      isOpen={true}
+      onOpenChange={(open) => { if (!open && !checkoutLoading) onClose(); }}
+      width={960}
+      maxHeight="90vh"
+      purpose={checkoutLoading ? 'required' : 'info'}
+      labelledBy="billing-plans-title"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 'min(960px, 100%)',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          background: 'var(--surface-1)',
-          border: '1px solid var(--border-strong)',
-          borderRadius: 'var(--radius-xl)',
-          boxShadow: 'var(--shadow-xl)',
-          padding: '28px 28px 32px',
-        }}
-      >
+      <div style={{ padding: '28px 28px 32px', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16, marginBottom: 28 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 'var(--ls-wider)', color: 'var(--violet-400)', marginBottom: 10 }}>
               Pricing
             </div>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 4vw, 40px)', lineHeight: 1.05, color: 'var(--text-primary)' }}>
+            <h3
+              id="billing-plans-title"
+              data-dialog-title
+              tabIndex={-1}
+              style={{ margin: 0, outline: 'none', fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 4vw, 40px)', lineHeight: 1.05, color: 'var(--text-primary)' }}
+            >
               Choose the right Tempo plan
             </h3>
             <p style={{ margin: '10px 0 0', color: 'var(--text-secondary)', font: 'var(--text-body-lg)' }}>
@@ -865,6 +844,7 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, contextMessage, onC
             type="button"
             onClick={onClose}
             disabled={checkoutLoading}
+            aria-label="Đóng"
             style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: checkoutLoading ? 'wait' : 'pointer' }}
           >
             <Icon name="x" size={18} />
@@ -946,7 +926,7 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, contextMessage, onC
           />
         </div>
       </div>
-    </div>
+    </TempoFeedback.Dialog>
   );
 }
 

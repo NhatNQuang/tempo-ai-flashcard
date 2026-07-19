@@ -22,11 +22,11 @@ function PricingSection({ onSignup }) {
       if (json.success && json.checkout_url) {
         window.open(json.checkout_url, '_blank');
       } else {
-        alert(json.error || 'Failed to start checkout');
+        toast({ body: json.error || 'Không khởi tạo được thanh toán.', type: 'error' });
       }
     } catch (err) {
       console.error('Checkout error:', err);
-      alert('Something went wrong.');
+      toast({ body: 'Có lỗi xảy ra. Vui lòng thử lại.', type: 'error' });
     } finally {
       setCheckoutLoading(false);
     }
