@@ -2617,20 +2617,32 @@ function verifyPolarWebhook(rawBody, headers) {
   if (Math.abs(now - ts) > 300) return false;
 
   const secret = POLAR_WEBHOOK_SECRET;
-  const secretBytes = Buffer.from(secret.split('_').pop(), 'base64');
   const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
-  const computed = crypto
-    .createHmac('sha256', secretBytes)
-    .update(signedContent)
-    .digest('base64');
+
+  // Polar's official SDK uses the raw secret string as the HMAC key,
+  // while the Standard Webhooks spec base64-decodes the part after "whsec_".
+  // Accept any of the plausible key derivations.
+  const stripped = secret.startsWith('whsec_') ? secret.slice(6) : secret;
+  const candidateKeys = [
+    Buffer.from(secret, 'utf8'),
+    Buffer.from(stripped, 'utf8'),
+  ];
+  try {
+    candidateKeys.push(Buffer.from(stripped, 'base64'));
+  } catch (_) { /* not base64 — skip */ }
+
+  const expectedSigs = candidateKeys.map((key) =>
+    crypto.createHmac('sha256', key).update(signedContent).digest('base64')
+  );
 
   const signatures = webhookSignature.split(' ');
   return signatures.some((sig) => {
     const sigValue = sig.startsWith('v1,') ? sig.slice(3) : sig;
-    return crypto.timingSafeEqual(
-      Buffer.from(computed),
-      Buffer.from(sigValue)
-    );
+    const sigBuf = Buffer.from(sigValue);
+    return expectedSigs.some((exp) => {
+      const expBuf = Buffer.from(exp);
+      return expBuf.length === sigBuf.length && crypto.timingSafeEqual(expBuf, sigBuf);
+    });
   });
 }
 
