@@ -62,6 +62,10 @@ app.get('/api/health', (req, res) => {
     geminiKeysConfigured: GEMINI_KEYS.length,
     supabaseConfigured: !!(SUPABASE_URL && SUPABASE_KEY),
     polarConfigured: !!(POLAR_ACCESS_TOKEN && POLAR_WEBHOOK_SECRET),
+    // TODO: remove debug — chỉ in TÊN biến POLAR_* mà runtime thấy, không in giá trị
+    polarEnvDebug: Object.keys(process.env)
+      .filter((k) => k.startsWith('POLAR_'))
+      .map((k) => `${k}:${(process.env[k] || '').length}`),
   });
 });
 
