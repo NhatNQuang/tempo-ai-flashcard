@@ -245,12 +245,12 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
     setShowBillingPlans(true);
   };
 
-  const handleStartCheckout = async (interval = billingInterval) => {
+  const handleStartCheckout = async (interval = billingInterval, endpoint = '/api/v1/billing/checkout') => {
     try {
       const { data: { session } } = await window.supabaseClient.auth.getSession();
       if (!session) return alert('Please log in first.');
       setCheckoutLoading(true);
-      const res = await fetch('/api/v1/billing/checkout', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -686,6 +686,7 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
           }}
           onSelectInterval={(isYearly) => setBillingInterval(isYearly ? 'year' : 'month')}
           onChoosePlan={() => handleStartCheckout(billingInterval)}
+          onChooseQrPlan={() => handleStartCheckout(billingInterval, '/api/v1/billing/payos/checkout')}
         />,
         document.body
       )}
@@ -736,7 +737,7 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
   );
 }
 
-function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectInterval, onChoosePlan }) {
+function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectInterval, onChoosePlan, onChooseQrPlan }) {
   React.useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape' && !checkoutLoading) onClose();
@@ -858,6 +859,8 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectIn
             buttonVariant="gradient"
             buttonDisabled={checkoutLoading}
             onButtonClick={onChoosePlan}
+            secondaryButtonLabel={checkoutLoading ? 'Please wait...' : 'Thanh toán QR ngân hàng 🇻🇳'}
+            onSecondaryButtonClick={onChooseQrPlan}
             features={[
               { text: 'Unlimited flashcards & notes', included: true },
               { text: 'Unlimited Tempo Assistant', included: true },
@@ -875,7 +878,7 @@ function BillingPlansModal({ yearly, checkoutLoading, isPro, onClose, onSelectIn
   );
 }
 
-function BillingPlanCard({ name, desc, price, unit, yearlyNote, originalPrice, popular, buttonLabel, buttonVariant, buttonDisabled, onButtonClick, features }) {
+function BillingPlanCard({ name, desc, price, unit, yearlyNote, originalPrice, popular, buttonLabel, buttonVariant, buttonDisabled, onButtonClick, secondaryButtonLabel, onSecondaryButtonClick, features }) {
   const isGradient = buttonVariant === 'gradient';
   return (
     <div style={{
@@ -929,6 +932,26 @@ function BillingPlanCard({ name, desc, price, unit, yearlyNote, originalPrice, p
       >
         {buttonLabel}
       </button>
+
+      {secondaryButtonLabel && (
+        <button
+          type="button"
+          onClick={onSecondaryButtonClick}
+          disabled={buttonDisabled}
+          style={{
+            width: '100%', height: 42, marginTop: -18, marginBottom: 28,
+            background: 'transparent', color: 'var(--text-primary)',
+            border: '1.5px solid var(--border-strong)',
+            borderRadius: 'var(--radius-md)',
+            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14,
+            cursor: buttonDisabled ? 'not-allowed' : 'pointer',
+            transition: 'border-color 0.15s ease',
+            opacity: buttonDisabled ? 0.7 : 1,
+          }}
+        >
+          {secondaryButtonLabel}
+        </button>
+      )}
 
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {features.map((f, i) => (

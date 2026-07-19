@@ -35,6 +35,23 @@ const POLAR_PRO_MONTHLY_PRODUCT_ID = process.env.POLAR_PRO_MONTHLY_PRODUCT_ID;
 const POLAR_PRO_YEARLY_PRODUCT_ID = process.env.POLAR_PRO_YEARLY_PRODUCT_ID;
 const POLAR_API_BASE = process.env.POLAR_API_BASE || 'https://sandbox-api.polar.sh/v1';
 
+const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
+const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
+const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
+
+let payosClient = null;
+if (PAYOS_CLIENT_ID && PAYOS_API_KEY && PAYOS_CHECKSUM_KEY) {
+  const { PayOS } = require('@payos/node');
+  payosClient = new PayOS({
+    clientId: PAYOS_CLIENT_ID,
+    apiKey: PAYOS_API_KEY,
+    checksumKey: PAYOS_CHECKSUM_KEY,
+  });
+}
+
+const PAYOS_PRICE_MONTHLY = 35000;
+const PAYOS_PRICE_YEARLY = 299000;
+
 // Initialize Supabase Client
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
@@ -62,6 +79,7 @@ app.get('/api/health', (req, res) => {
     geminiKeysConfigured: GEMINI_KEYS.length,
     supabaseConfigured: !!(SUPABASE_URL && SUPABASE_KEY),
     polarConfigured: !!(POLAR_ACCESS_TOKEN && POLAR_WEBHOOK_SECRET),
+    payosConfigured: !!payosClient,
   });
 });
 
@@ -401,7 +419,13 @@ app.get('/api/v1/me', async (req, res) => {
         email_notifications_enabled: true
       };
     }
-    res.json({ success: true, data: { user: profile, settings } });
+    // Effective plan: Polar subscription (plan='pro') OR active payOS prepaid (pro_until)
+    const effectiveProfile = profile ? { ...profile } : profile;
+    if (effectiveProfile && effectiveProfile.plan !== 'pro' &&
+        effectiveProfile.pro_until && new Date(effectiveProfile.pro_until) > new Date()) {
+      effectiveProfile.plan = 'pro';
+    }
+    res.json({ success: true, data: { user: effectiveProfile, settings } });
   } catch (error) {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
   }
@@ -2649,11 +2673,103 @@ function verifyPolarWebhook(rawBody, headers) {
 async function isProUser(userId) {
   const { data } = await supabase
     .from('profiles')
-    .select('plan')
+    .select('plan, pro_until')
     .eq('id', userId)
     .single();
-  return data?.plan === 'pro';
+  if (!data) return false;
+  if (data.plan === 'pro') return true;
+  return !!(data.pro_until && new Date(data.pro_until) > new Date());
 }
+
+// ─── payOS (VietQR prepaid) ──────────────────────────────────────
+
+app.post('/api/v1/billing/payos/checkout', async (req, res) => {
+  try {
+    const userId = getUserIdFromRequest(req);
+    if (userId === DEFAULT_USER_ID) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+    if (!payosClient) {
+      return res.status(500).json({ success: false, error: 'QR billing not configured' });
+    }
+
+    const { interval } = req.body;
+    const planInterval = interval === 'year' ? 'year' : 'month';
+    const amount = planInterval === 'year' ? PAYOS_PRICE_YEARLY : PAYOS_PRICE_MONTHLY;
+    const orderCode = Date.now();
+
+    const payment = await payosClient.paymentRequests.create({
+      orderCode,
+      amount,
+      description: 'TEMPO PRO',
+      returnUrl: `${APP_BASE_URL}/billing/success`,
+      cancelUrl: `${APP_BASE_URL}/billing/cancel`,
+    });
+
+    const { data: orderResult, error } = await supabase.rpc('rpc_create_payos_order', {
+      p_order_code: orderCode,
+      p_user_id: userId,
+      p_interval: planInterval,
+      p_amount: amount,
+      p_payment_link_id: payment.paymentLinkId || null,
+    });
+
+    if (error || !orderResult?.success) {
+      console.error('payOS order insert error:', error || orderResult);
+      return res.status(500).json({ success: false, error: 'Failed to record order' });
+    }
+
+    return res.json({
+      success: true,
+      checkout_url: payment.checkoutUrl,
+      qr_code: payment.qrCode,
+      order_code: orderCode,
+    });
+  } catch (err) {
+    console.error('payOS checkout error:', err);
+    return res.status(502).json({ success: false, error: 'Failed to create QR payment' });
+  }
+});
+
+app.post('/api/v1/payos/webhook', async (req, res) => {
+  try {
+    if (!payosClient) {
+      return res.status(500).json({ error: 'QR billing not configured' });
+    }
+
+    let webhookData;
+    try {
+      webhookData = await payosClient.webhooks.verify(req.body);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
+    if (webhookData.code !== '00') {
+      return res.status(200).json({ received: true, ignored: 'not a successful payment' });
+    }
+
+    const { data: result, error } = await supabase.rpc('rpc_apply_payos_payment', {
+      p_order_code: webhookData.orderCode,
+    });
+
+    if (error) {
+      console.error('payOS webhook RPC error:', error);
+      return res.status(500).json({ error: 'Failed to process payment' });
+    }
+
+    // Unknown orderCode (e.g. payOS webhook validation test) — ack with 200 so
+    // registration succeeds and payOS doesn't retry forever.
+    if (!result?.success) {
+      console.warn('payOS webhook skipped:', result);
+      return res.status(200).json({ received: true, skipped: result?.error || 'unknown order' });
+    }
+
+    return res.status(200).json({ received: true, result });
+  } catch (err) {
+    console.error('payOS webhook error:', err);
+    return res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
 
 app.post('/api/v1/polar/webhook', async (req, res) => {
   try {
@@ -2775,7 +2891,7 @@ app.get('/api/v1/billing/subscription', async (req, res) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('plan')
+      .select('plan, pro_until')
       .eq('id', userId)
       .single();
 
@@ -2787,9 +2903,13 @@ app.get('/api/v1/billing/subscription', async (req, res) => {
       .limit(1)
       .maybeSingle();
 
+    const prepaidActive = !!(profile?.pro_until && new Date(profile.pro_until) > new Date());
+    const effectivePlan = profile?.plan === 'pro' || prepaidActive ? 'pro' : 'free';
+
     return res.json({
       success: true,
-      plan: profile?.plan || 'free',
+      plan: effectivePlan,
+      pro_until: profile?.pro_until || null,
       subscription: subscription || null,
     });
   } catch (err) {

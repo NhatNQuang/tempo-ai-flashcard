@@ -4,13 +4,13 @@ function PricingSection({ onSignup }) {
   const [yearly, setYearly] = React.useState(true);
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = async (endpoint = '/api/v1/billing/checkout') => {
     if (!window.supabaseClient) return onSignup();
     try {
       const { data: { session } } = await window.supabaseClient.auth.getSession();
       if (!session) return onSignup();
       setCheckoutLoading(true);
-      const res = await fetch('/api/v1/billing/checkout', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -107,7 +107,9 @@ function PricingSection({ onSignup }) {
           popular
           cta={checkoutLoading ? 'Processing...' : 'Upgrade to Pro'}
           ctaVariant="gradient"
-          onCta={handleUpgrade}
+          onCta={() => handleUpgrade('/api/v1/billing/checkout')}
+          secondaryCta="Thanh toán QR ngân hàng 🇻🇳"
+          onSecondaryCta={() => handleUpgrade('/api/v1/billing/payos/checkout')}
           features={[
             { text: 'Unlimited flashcards & notes', included: true },
             { text: 'Unlimited Tempo Assistant', included: true },
@@ -124,7 +126,7 @@ function PricingSection({ onSignup }) {
   );
 }
 
-function PricingCard({ name, desc, price, unit, yearlyNote, originalPrice, popular, cta, ctaVariant, onCta, features }) {
+function PricingCard({ name, desc, price, unit, yearlyNote, originalPrice, popular, cta, ctaVariant, onCta, secondaryCta, onSecondaryCta, features }) {
   const isGradient = ctaVariant === 'gradient';
   return (
     <div style={{
@@ -192,6 +194,21 @@ function PricingCard({ name, desc, price, unit, yearlyNote, originalPrice, popul
         }}>
         {cta}
       </button>
+
+      {secondaryCta && (
+        <button onClick={onSecondaryCta} style={{
+          width: '100%', height: 42, marginTop: -18, marginBottom: 28,
+          background: 'transparent', color: 'var(--text-primary)',
+          border: '1.5px solid var(--border-strong)',
+          borderRadius: 'var(--radius-md)',
+          fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14,
+          cursor: 'pointer', transition: 'border-color 0.15s ease',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--violet-500)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}>
+          {secondaryCta}
+        </button>
+      )}
 
       {/* Features list */}
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
