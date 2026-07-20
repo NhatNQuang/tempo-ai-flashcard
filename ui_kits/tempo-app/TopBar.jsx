@@ -1,4 +1,25 @@
 // Tempo UI kit - top bar (search + contextual actions)
+
+// Reskin palette (dev/topbar-reskin): matches the approved Astryx redesign
+// (Sample1) — navy surfaces, soft violet accent. Scoped to the notification
+// and profile popovers only; the rest of the app keeps the old tokens.
+const SKIN = {
+  card: '#181927',
+  cardHover: '#212330',
+  border: '#2b2c3d',
+  borderStrong: '#3a3b52',
+  text: '#f3f4fc',
+  textMuted: '#9497ab',
+  textFaint: '#6b6e85',
+  accent: '#b599ff',
+  onAccent: '#131423',
+  accentTint: 'rgba(181,153,255,0.09)',
+  danger: '#f94144',
+  radius: 14,
+  radiusSm: 10,
+  shadow: '0 18px 48px rgba(0,0,0,0.5)',
+};
+
 function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', actions, userProfile, userSettings, setUserProfile, setUserSettings }) {
   const { Input, IconButton, Button, Avatar } = window.TempoDesignSystem_e112f2;
   const [showPopup, setShowPopup] = React.useState(false);
@@ -369,8 +390,8 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
             title={`${userProfile?.full_name || 'User'} - ${isPro ? t('pro_plan') : t('free_plan')}`}
             style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              background: 'var(--surface-2)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-primary)'
+              background: SKIN.card, border: `1px solid ${SKIN.border}`,
+              borderRadius: SKIN.radiusSm, padding: '6px 10px', cursor: 'pointer', color: SKIN.text
             }}
           >
             <Avatar name={userProfile?.full_name || 'User'} src={userProfile?.avatar_url} size="sm" ring />
@@ -385,10 +406,10 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
           {showPopup && (
             <div style={{
               position: 'absolute', top: '100%', right: 0, marginTop: 8,
-              width: 280, background: 'var(--surface-2)', border: '1px solid var(--border-strong)',
-              borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xl)', padding: 16,
+              width: 280, background: SKIN.card, border: `1px solid ${SKIN.border}`,
+              borderRadius: SKIN.radius, boxShadow: SKIN.shadow, padding: 16,
               display: 'flex', flexDirection: 'column', gap: 14, zIndex: 100,
-              color: 'var(--text-primary)'
+              color: SKIN.text
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
                 <Avatar name={userProfile?.full_name || 'User'} src={userProfile?.avatar_url} size="md" ring />
@@ -402,12 +423,12 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <button onClick={() => { setShowPopup(false); setShowSettings(true); }} style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                  background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)',
-                  color: 'var(--text-primary)', fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
+                  background: 'transparent', border: 'none', borderRadius: SKIN.radiusSm,
+                  color: SKIN.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
                 }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                  onMouseEnter={e => e.currentTarget.style.background = SKIN.cardHover}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <Icon name="settings" size={15} color="var(--text-secondary)" />
+                  <Icon name="settings" size={15} color={SKIN.textMuted} />
                   {t('settings')}
                 </button>
                 
@@ -415,14 +436,14 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
                   <span style={{ color: 'var(--text-secondary)' }}>{t('theme')}:</span>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button onClick={() => handleToggleTheme('light')} style={{
-                      padding: '4px 8px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                      background: (userSettings?.theme === 'light') ? 'var(--violet-500)' : 'var(--surface-3)',
-                      color: (userSettings?.theme === 'light') ? '#fff' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600
+                      padding: '4px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      background: (userSettings?.theme === 'light') ? SKIN.accent : SKIN.cardHover,
+                      color: (userSettings?.theme === 'light') ? SKIN.onAccent : SKIN.textMuted, fontSize: 11, fontWeight: 600
                     }}>{t('light')}</button>
                     <button onClick={() => handleToggleTheme('dark')} style={{
-                      padding: '4px 8px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                      background: (userSettings?.theme === 'dark' || !userSettings?.theme) ? 'var(--violet-500)' : 'var(--surface-3)',
-                      color: (userSettings?.theme === 'dark' || !userSettings?.theme) ? '#fff' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600
+                      padding: '4px 8px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      background: (userSettings?.theme === 'dark' || !userSettings?.theme) ? SKIN.accent : SKIN.cardHover,
+                      color: (userSettings?.theme === 'dark' || !userSettings?.theme) ? SKIN.onAccent : SKIN.textMuted, fontSize: 11, fontWeight: 600
                     }}>{t('dark')}</button>
                   </div>
                 </div>
@@ -436,8 +457,8 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
                       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Sử dụng tuần này</span>
                       <button onClick={handleUpgrade} style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
-                        background: 'var(--grad-brand)', color: '#fff', border: 'none',
-                        borderRadius: 'var(--radius-pill)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                        background: SKIN.accent, color: SKIN.onAccent, border: 'none',
+                        borderRadius: 999, fontSize: 10, fontWeight: 700, cursor: 'pointer',
                       }}><Icon name="crown" size={10} /> Pro</button>
                     </div>
                     <UsageBar label="Flashcards" used={usage.usage.flashcards} limit={usage.limits.flashcards} />
@@ -452,12 +473,12 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
 
               <button onClick={handleLogOut} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
-                background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)',
-                color: 'var(--danger-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'left'
+                background: 'transparent', border: 'none', borderRadius: SKIN.radiusSm,
+                color: SKIN.danger, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'left'
               }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(240,88,79,0.1)'}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,65,68,0.1)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Icon name="log-out" size={15} color="var(--danger-text)" />
+                <Icon name="log-out" size={15} color={SKIN.danger} />
                 {t('logout')}
               </button>
             </div>
@@ -466,17 +487,17 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
           <span style={{ position: 'relative', display: 'inline-flex' }}>
             <IconButton label="Notifications" variant="ghost" onClick={() => { setShowNotif(s => !s); if (!showNotif) fetchNotifications(); }}><Icon name="bell" /></IconButton>
             {unreadCount > 0 && (
-              <span style={{ position: 'absolute', top: 4, right: 4, minWidth: 15, height: 15, padding: '0 3px', borderRadius: 999, background: 'var(--violet-500)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg-base)' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              <span style={{ position: 'absolute', top: 4, right: 4, minWidth: 15, height: 15, padding: '0 3px', borderRadius: 999, background: SKIN.accent, color: SKIN.onAccent, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--bg-base)' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
             )}
 
             {showNotif && (
               <div style={{
                 position: 'absolute', top: '100%', right: 0, marginTop: 8,
                 width: 340, maxHeight: 420, overflowY: 'auto',
-                background: 'var(--surface-2)', border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xl)', zIndex: 120, color: 'var(--text-primary)'
+                background: SKIN.card, border: `1px solid ${SKIN.border}`,
+                borderRadius: SKIN.radius, boxShadow: SKIN.shadow, zIndex: 120, color: SKIN.text
               }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--surface-2)' }}>
+                <div style={{ padding: '12px 16px', borderBottom: `1px solid ${SKIN.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: SKIN.card }}>
                   <span style={{ fontSize: 13.5, fontWeight: 700 }}>{window.currentLanguage === 'vi' ? 'Thông báo' : 'Notifications'}</span>
                   <button onClick={() => setShowNotif(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'inline-flex' }}><Icon name="x" size={15} /></button>
                 </div>
@@ -487,20 +508,20 @@ function TopBar({ placeholder = 'Search study spaces, notes, flashcards...', act
                 ) : notifications.map(n => (
                   <button key={n.id} onClick={() => markNotifRead(n.id)} style={{
                     display: 'flex', gap: 10, width: '100%', textAlign: 'left', cursor: 'pointer',
-                    padding: '11px 16px', border: 'none', borderBottom: '1px solid var(--border)',
-                    background: n.read_at ? 'transparent' : 'rgba(139,92,246,0.07)'
+                    padding: '11px 16px', border: 'none', borderBottom: `1px solid ${SKIN.border}`,
+                    background: n.read_at ? 'transparent' : SKIN.accentTint
                   }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                    onMouseLeave={e => e.currentTarget.style.background = n.read_at ? 'transparent' : 'rgba(139,92,246,0.07)'}>
-                    <span style={{ flex: '0 0 auto', marginTop: 2, color: 'var(--violet-300)' }}>
+                    onMouseEnter={e => e.currentTarget.style.background = SKIN.cardHover}
+                    onMouseLeave={e => e.currentTarget.style.background = n.read_at ? 'transparent' : SKIN.accentTint}>
+                    <span style={{ flex: '0 0 auto', marginTop: 2, color: SKIN.accent }}>
                       <Icon name={n.type === 'resource_imported' ? 'download' : n.type === 'resource_shared' ? 'share-2' : 'bell'} size={15} />
                     </span>
                     <span style={{ minWidth: 0, flex: 1 }}>
-                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>{n.title}</span>
-                      <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, marginTop: 1 }}>{n.message}</span>
-                      <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-tertiary)', marginTop: 3 }}>{notifTimeAgo(n.created_at)}</span>
+                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: SKIN.text }}>{n.title}</span>
+                      <span style={{ display: 'block', fontSize: 12, color: SKIN.textMuted, lineHeight: 1.4, marginTop: 1 }}>{n.message}</span>
+                      <span style={{ display: 'block', fontSize: 10.5, color: SKIN.textFaint, marginTop: 3 }}>{notifTimeAgo(n.created_at)}</span>
                     </span>
-                    {!n.read_at && <span style={{ flex: '0 0 auto', width: 7, height: 7, borderRadius: 999, background: 'var(--violet-500)', marginTop: 5 }} />}
+                    {!n.read_at && <span style={{ flex: '0 0 auto', width: 7, height: 7, borderRadius: 999, background: SKIN.accent, marginTop: 5 }} />}
                   </button>
                 ))}
               </div>
