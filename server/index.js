@@ -2527,7 +2527,24 @@ async function callLlm(prompt, { json }) {
 
 async function callOpenAiJson(prompt) {
   const rawText = await callLlm(prompt, { json: true });
-  return JSON.parse(stripCodeFence(rawText));
+  const cleaned = stripCodeFence(rawText);
+  try {
+    return JSON.parse(cleaned);
+  } catch (parseErr) {
+    console.error('callOpenAiJson: JSON.parse failed:', parseErr.message);
+    console.error('callOpenAiJson: raw (first 500 chars):', cleaned.slice(0, 500));
+    // Attempt to fix bad unicode escapes and retry
+    const sanitized = cleaned
+      .replace(/\\u\{([0-9a-fA-F]+)\}/g, (_m, hex) => {
+        const cp = parseInt(hex, 16);
+        if (cp <= 0xFFFF) return '\\u' + hex.padStart(4, '0');
+        const hi = Math.floor((cp - 0x10000) / 0x400) + 0xD800;
+        const lo = ((cp - 0x10000) % 0x400) + 0xDC00;
+        return '\\u' + hi.toString(16) + '\\u' + lo.toString(16);
+      })
+      .replace(/\\u(?![0-9a-fA-F]{4})/g, '\\\\u');  // escape bare \u not followed by 4 hex
+    return JSON.parse(sanitized);
+  }
 }
 
 async function callOpenAiText(prompt) {
