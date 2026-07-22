@@ -1978,7 +1978,8 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
     if (req.body.storagePath) {
       const storagePath = req.body.storagePath;
       filename = req.body.originalFilename || storagePath.split('/').pop();
-      const { data: fileBlob, error: dlError } = await supabase.storage
+      const uc = userClient(req);
+      const { data: fileBlob, error: dlError } = await uc.storage
         .from('documents-raw-temp')
         .download(storagePath);
       if (dlError) throw new Error('Failed to download file from storage: ' + dlError.message);
@@ -2071,7 +2072,8 @@ app.post('/api/generate/notes', upload.single('file'), async (req, res) => {
     if (req.body.storagePath) {
       const storagePath = req.body.storagePath;
       filename = req.body.originalFilename || storagePath.split('/').pop();
-      const { data: fileBlob, error: dlError } = await supabase.storage
+      const uc = userClient(req);
+      const { data: fileBlob, error: dlError } = await uc.storage
         .from('documents-raw-temp')
         .download(storagePath);
       if (dlError) throw new Error('Failed to download file from storage: ' + dlError.message);
