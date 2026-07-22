@@ -1465,16 +1465,16 @@ function TempoTrigger({ onClick }) {
       onClick={onClick}
       className="floating-ai-trigger"
       style={{
-        position: ‘fixed’, bottom: 28, right: 28, zIndex: 40, width: 52, height: 52, borderRadius: 16,
-        background: ‘linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(99,102,241,0.10) 100%)’,
-        backdropFilter: ‘blur(12px)’, WebkitBackdropFilter: ‘blur(12px)’,
-        border: ‘1px solid rgba(139,92,246,0.3)’,
-        display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’, cursor: ‘pointer’, outline: ‘none’,
-        boxShadow: ‘0 4px 24px rgba(139,92,246,0.25), 0 0 0 1px rgba(139,92,246,0.1)’,
-        transition: ‘all 0.2s cubic-bezier(0.16, 1, 0.3, 1)’
+        position: 'fixed', bottom: 28, right: 28, zIndex: 40, width: 52, height: 52, borderRadius: 16,
+        background: 'linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(99,102,241,0.10) 100%)',
+        backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(139,92,246,0.3)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', outline: 'none',
+        boxShadow: '0 4px 24px rgba(139,92,246,0.25), 0 0 0 1px rgba(139,92,246,0.1)',
+        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
       }}
     >
-      <img src="../../assets/logo.png" alt="Tempo" style={{ width: 30, height: 30, borderRadius: 8, objectFit: ‘cover’ }} />
+      <img src="../../assets/logo.png" alt="Tempo" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover' }} />
     </button>
   );
 }
@@ -1482,19 +1482,19 @@ function TempoTrigger({ onClick }) {
 // Sub-component: TempoAssistant — Astryx-inspired AI Chat
 function TempoAssistant({ context, open, onClose, variant }) {
   const { Button } = window.TempoDesignSystem_e112f2;
-  const [input, setInput] = React.useState(‘’);
+  const [input, setInput] = React.useState('');
   const [msgs, setMsgs] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [langToken, setLangToken] = React.useState(0);
   const messagesEndRef = React.useRef(null);
   const inputRef = React.useRef(null);
 
-  const isVi = () => window.currentLanguage === ‘vi’;
+  const isVi = () => window.currentLanguage === 'vi';
 
   React.useEffect(() => {
     const handleLangChange = () => setLangToken(tok => tok + 1);
-    window.addEventListener(‘languagechange’, handleLangChange);
-    return () => window.removeEventListener(‘languagechange’, handleLangChange);
+    window.addEventListener('languagechange', handleLangChange);
+    return () => window.removeEventListener('languagechange', handleLangChange);
   }, []);
 
   React.useEffect(() => {
@@ -1503,17 +1503,17 @@ function TempoAssistant({ context, open, onClose, variant }) {
 
   React.useEffect(() => {
     setMsgs([{
-      role: ‘ai’,
+      role: 'ai',
       text: context?.materialName
-        ? (isVi() ? `Toi dang tap trung vao "${context.materialName}". Hoi toi bat ky dieu gi tu tai lieu nay.` : `I’m focused on "${context.materialName}". Ask me anything from this document.`)
-        : (isVi() ? ‘Xin chao, toi la Tempo. Hay mo mot bo the ghi nho hoac ghi chu de toi tra loi tu tai lieu nguon.’ : "Hi, I’m Tempo. Open a flashcard set or note and I’ll answer from its document."),
+        ? (isVi() ? `Toi dang tap trung vao "${context.materialName}". Hoi toi bat ky dieu gi tu tai lieu nay.` : `I'm focused on "${context.materialName}". Ask me anything from this document.`)
+        : (isVi() ? 'Xin chao, toi la Tempo. Hay mo mot bo the ghi nho hoac ghi chu de toi tra loi tu tai lieu nguon.' : "Hi, I'm Tempo. Open a flashcard set or note and I'll answer from its document."),
       time: new Date()
     }]);
-    setInput(‘’);
+    setInput('');
   }, [context?.itemId, langToken]);
 
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: ‘smooth’ });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [msgs, loading]);
 
   React.useEffect(() => {
@@ -1521,28 +1521,28 @@ function TempoAssistant({ context, open, onClose, variant }) {
   }, [open]);
 
   function formatTime(d) {
-    if (!d) return ‘’;
+    if (!d) return '';
     const date = d instanceof Date ? d : new Date(d);
-    return date.toLocaleTimeString([], { hour: ‘2-digit’, minute: ‘2-digit’ });
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   async function send() {
     if (!input.trim()) return;
     const question = input.trim();
-    setMsgs(m => [...m, { role: ‘user’, text: question, time: new Date() }]);
-    setInput(‘’);
+    setMsgs(m => [...m, { role: 'user', text: question, time: new Date() }]);
+    setInput('');
 
     if (!context?.documentContext && !context?.itemId) {
-      setMsgs(m => [...m, { role: ‘ai’, text: isVi() ? ‘Toi can tai lieu nguon tu mot bo the hoac ghi chu duoc tao truoc khi tra loi.’ : ‘I need document context from a generated flashcard set or note before I can answer.’, time: new Date() }]);
+      setMsgs(m => [...m, { role: 'ai', text: isVi() ? 'Toi can tai lieu nguon tu mot bo the hoac ghi chu duoc tao truoc khi tra loi.' : 'I need document context from a generated flashcard set or note before I can answer.', time: new Date() }]);
       return;
     }
 
     setLoading(true);
     try {
       const authHeaders = await getAuthHeaders();
-      const response = await fetch(‘/api/assistant’, {
-        method: ‘POST’,
-        headers: { ‘Content-Type’: ‘application/json’, ...authHeaders },
+      const response = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           question,
           documentContext: context.documentContext,
@@ -1554,14 +1554,14 @@ function TempoAssistant({ context, open, onClose, variant }) {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (payload && payload.code === ‘PLAN_LIMIT’) {
-          window.dispatchEvent(new CustomEvent(‘tempo:paywall’, { detail: payload }));
+        if (payload && payload.code === 'PLAN_LIMIT') {
+          window.dispatchEvent(new CustomEvent('tempo:paywall', { detail: payload }));
         }
-        throw new Error(payload.error || (isVi() ? ‘Tempo AI khong the tra loi luc nay.’ : ‘Tempo AI could not answer right now.’));
+        throw new Error(payload.error || (isVi() ? 'Tempo AI khong the tra loi luc nay.' : 'Tempo AI could not answer right now.'));
       }
-      setMsgs(m => [...m, { role: ‘ai’, text: payload.answer || (isVi() ? ‘Toi khong tim thay cau tra loi trong tai lieu.’ : ‘I could not find an answer in the document.’), time: new Date() }]);
+      setMsgs(m => [...m, { role: 'ai', text: payload.answer || (isVi() ? 'Toi khong tim thay cau tra loi trong tai lieu.' : 'I could not find an answer in the document.'), time: new Date() }]);
     } catch (error) {
-      setMsgs(m => [...m, { role: ‘ai’, text: error.message || (isVi() ? ‘Tempo AI khong the tra loi luc nay.’ : ‘Tempo AI could not answer right now.’), time: new Date() }]);
+      setMsgs(m => [...m, { role: 'ai', text: error.message || (isVi() ? 'Tempo AI khong the tra loi luc nay.' : 'Tempo AI could not answer right now.'), time: new Date() }]);
     } finally {
       setLoading(false);
     }
@@ -1569,52 +1569,52 @@ function TempoAssistant({ context, open, onClose, variant }) {
 
   if (!open) return null;
 
-  const sourceLabel = context?.materialType === ‘notes’
-    ? (isVi() ? ‘Ghi chu Cornell’ : ‘Cornell Notes’)
-    : (isVi() ? ‘The ghi nho’ : ‘Flashcards’);
+  const sourceLabel = context?.materialType === 'notes'
+    ? (isVi() ? 'Ghi chu Cornell' : 'Cornell Notes')
+    : (isVi() ? 'The ghi nho' : 'Flashcards');
 
   return (
     <aside className="tempo-chat-panel" style={{
-      position: ‘fixed’, right: 0, top: 0, bottom: 0, zIndex: 50, width: 420, maxWidth: ‘100vw’,
-      background: ‘var(--surface-1)’, display: ‘flex’, flexDirection: ‘column’,
-      boxShadow: ‘-8px 0 32px rgba(0,0,0,0.3), -2px 0 8px rgba(0,0,0,0.15)’,
-      animation: ‘tempoChatSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)’,
-      borderLeft: ‘1px solid var(--border)’
+      position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 50, width: 420, maxWidth: '100vw',
+      background: 'var(--surface-1)', display: 'flex', flexDirection: 'column',
+      boxShadow: '-8px 0 32px rgba(0,0,0,0.3), -2px 0 8px rgba(0,0,0,0.15)',
+      animation: 'tempoChatSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+      borderLeft: '1px solid var(--border)'
     }}>
       {/* Header */}
       <div style={{
-        display: ‘flex’, alignItems: ‘center’, justifyContent: ‘space-between’,
-        padding: ‘14px 16px’, borderBottom: ‘1px solid var(--border-subtle)’,
-        background: ‘linear-gradient(180deg, rgba(139,92,246,0.06) 0%, transparent 100%)’
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)',
+        background: 'linear-gradient(180deg, rgba(139,92,246,0.06) 0%, transparent 100%)'
       }}>
-        <div style={{ display: ‘flex’, alignItems: ‘center’, gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10, overflow: ‘hidden’,
-            background: ‘linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.15))’,
-            border: ‘1px solid rgba(139,92,246,0.25)’, display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’,
-            boxShadow: ‘0 2px 8px rgba(139,92,246,0.15)’
+            width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
+            background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.15))',
+            border: '1px solid rgba(139,92,246,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(139,92,246,0.15)'
           }}>
-            <img src="../../assets/logo.png" alt="Tempo" style={{ width: 24, height: 24, borderRadius: 6, objectFit: ‘cover’ }} />
+            <img src="../../assets/logo.png" alt="Tempo" style={{ width: 24, height: 24, borderRadius: 6, objectFit: 'cover' }} />
           </div>
           <div>
-            <div style={{ display: ‘flex’, alignItems: ‘center’, gap: 6 }}>
-              <span style={{ color: ‘var(--text-primary)’, fontWeight: 600, fontSize: 14, letterSpacing: ‘-0.01em’ }}>Tempo AI</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14, letterSpacing: '-0.01em' }}>Tempo AI</span>
               <span style={{
-                width: 6, height: 6, borderRadius: ‘50%’, background: ‘#3fd180’,
-                boxShadow: ‘0 0 6px rgba(63,209,128,0.5)’, display: ‘inline-block’
+                width: 6, height: 6, borderRadius: '50%', background: '#3fd180',
+                boxShadow: '0 0 6px rgba(63,209,128,0.5)', display: 'inline-block'
               }} />
             </div>
-            <span style={{ color: ‘var(--text-tertiary)’, fontSize: 11.5, display: ‘flex’, alignItems: ‘center’, gap: 4 }}>
+            <span style={{ color: 'var(--text-tertiary)', fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 4 }}>
               <Icon name="book-open" size={10} />
-              {sourceLabel}{context?.materialName ? ` · ${context.materialName.slice(0, 28)}${context.materialName.length > 28 ? ‘...’ : ‘’}` : ‘’}
+              {sourceLabel}{context?.materialName ? ` · ${context.materialName.slice(0, 28)}${context.materialName.length > 28 ? '...' : ''}` : ''}
             </span>
           </div>
         </div>
         <button onClick={onClose} className="tempo-chat-close-btn" style={{
-          background: ‘rgba(255,255,255,0.05)’, border: ‘1px solid var(--border-subtle)’,
-          borderRadius: 8, cursor: ‘pointer’, color: ‘var(--text-secondary)’, padding: ‘6px 7px’,
-          display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’,
-          transition: ‘all 0.15s ease’
+          background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-subtle)',
+          borderRadius: 8, cursor: 'pointer', color: 'var(--text-secondary)', padding: '6px 7px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.15s ease'
         }}>
           <Icon name="x" size={14} />
         </button>
@@ -1622,18 +1622,18 @@ function TempoAssistant({ context, open, onClose, variant }) {
 
       {/* Messages */}
       <div style={{
-        flex: 1, overflowY: ‘auto’, padding: ‘20px 16px’, display: ‘flex’, flexDirection: ‘column’, gap: 4,
-        scrollbarWidth: ‘thin’, scrollbarColor: ‘rgba(255,255,255,0.1) transparent’
+        flex: 1, overflowY: 'auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 4,
+        scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent'
       }}>
         {msgs.map((m, i) => {
-          const isUser = m.role === ‘user’;
+          const isUser = m.role === 'user';
           const isFirst = i === 0 || msgs[i - 1]?.role !== m.role;
           const isLast = i === msgs.length - 1 || msgs[i + 1]?.role !== m.role;
 
           return (
             <div key={i} style={{
-              display: ‘flex’, justifyContent: isUser ? ‘flex-end’ : ‘flex-start’,
-              alignItems: ‘flex-end’, gap: 8,
+              display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start',
+              alignItems: 'flex-end', gap: 8,
               marginTop: isFirst ? 12 : 2,
               marginBottom: isLast ? 4 : 0
             }}>
@@ -1641,35 +1641,35 @@ function TempoAssistant({ context, open, onClose, variant }) {
               {!isUser && isLast && (
                 <div style={{
                   width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                  background: ‘linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.15))’,
-                  border: ‘1px solid rgba(139,92,246,0.2)’,
-                  display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’
+                  background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.15))',
+                  border: '1px solid rgba(139,92,246,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <img src="../../assets/logo.png" alt="" style={{ width: 18, height: 18, borderRadius: 4, objectFit: ‘cover’ }} />
+                  <img src="../../assets/logo.png" alt="" style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }} />
                 </div>
               )}
               {!isUser && !isLast && <div style={{ width: 28, flexShrink: 0 }} />}
 
-              <div style={{ maxWidth: ‘82%’, display: ‘flex’, flexDirection: ‘column’, alignItems: isUser ? ‘flex-end’ : ‘flex-start’ }}>
+              <div style={{ maxWidth: '82%', display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
                 <div style={{
-                  padding: ‘10px 14px’,
+                  padding: '10px 14px',
                   borderRadius: isUser
-                    ? (isFirst && isLast ? ‘18px 18px 4px 18px’ : isFirst ? ‘18px 18px 4px 18px’ : isLast ? ‘18px 4px 4px 18px’ : ‘18px 4px 4px 18px’)
-                    : (isFirst && isLast ? ‘18px 18px 18px 4px’ : isFirst ? ‘18px 18px 18px 4px’ : isLast ? ‘4px 18px 18px 4px’ : ‘4px 18px 18px 4px’),
+                    ? (isFirst && isLast ? '18px 18px 4px 18px' : isFirst ? '18px 18px 4px 18px' : isLast ? '18px 4px 4px 18px' : '18px 4px 4px 18px')
+                    : (isFirst && isLast ? '18px 18px 18px 4px' : isFirst ? '18px 18px 18px 4px' : isLast ? '4px 18px 18px 4px' : '4px 18px 18px 4px'),
                   fontSize: 13.5, lineHeight: 1.55,
                   background: isUser
-                    ? ‘linear-gradient(135deg, var(--violet-500, #8b5cf6), var(--indigo-500, #6366f1))’
-                    : ‘transparent’,
-                  color: isUser ? ‘#fff’ : ‘var(--text-primary)’,
-                  border: isUser ? ‘none’ : ‘1px solid var(--border-subtle)’,
-                  whiteSpace: ‘pre-wrap’, wordBreak: ‘break-word’,
-                  boxShadow: isUser ? ‘0 2px 8px rgba(139,92,246,0.25)’ : ‘none’
+                    ? 'linear-gradient(135deg, var(--violet-500, #8b5cf6), var(--indigo-500, #6366f1))'
+                    : 'transparent',
+                  color: isUser ? '#fff' : 'var(--text-primary)',
+                  border: isUser ? 'none' : '1px solid var(--border-subtle)',
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  boxShadow: isUser ? '0 2px 8px rgba(139,92,246,0.25)' : 'none'
                 }}>{m.text}</div>
 
                 {/* Timestamp on last message in group */}
                 {isLast && m.time && (
                   <span style={{
-                    fontSize: 10.5, color: ‘var(--text-tertiary)’, marginTop: 4,
+                    fontSize: 10.5, color: 'var(--text-tertiary)', marginTop: 4,
                     paddingInline: 4, opacity: 0.7
                   }}>{formatTime(m.time)}</span>
                 )}
@@ -1680,22 +1680,22 @@ function TempoAssistant({ context, open, onClose, variant }) {
 
         {/* Typing indicator */}
         {loading && (
-          <div style={{ display: ‘flex’, alignItems: ‘flex-end’, gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 12 }}>
             <div style={{
               width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-              background: ‘linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.15))’,
-              border: ‘1px solid rgba(139,92,246,0.2)’,
-              display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.15))',
+              border: '1px solid rgba(139,92,246,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
-              <img src="../../assets/logo.png" alt="" style={{ width: 18, height: 18, borderRadius: 4, objectFit: ‘cover’ }} />
+              <img src="../../assets/logo.png" alt="" style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover' }} />
             </div>
             <div style={{
-              padding: ‘12px 18px’, borderRadius: ‘18px 18px 18px 4px’,
-              border: ‘1px solid var(--border-subtle)’, display: ‘flex’, gap: 5, alignItems: ‘center’
+              padding: '12px 18px', borderRadius: '18px 18px 18px 4px',
+              border: '1px solid var(--border-subtle)', display: 'flex', gap: 5, alignItems: 'center'
             }}>
-              <span className="tempo-typing-dot" style={{ ‘--d’: ‘0s’ }} />
-              <span className="tempo-typing-dot" style={{ ‘--d’: ‘0.15s’ }} />
-              <span className="tempo-typing-dot" style={{ ‘--d’: ‘0.3s’ }} />
+              <span className="tempo-typing-dot" style={{ '--d': '0s' }} />
+              <span className="tempo-typing-dot" style={{ '--d': '0.15s' }} />
+              <span className="tempo-typing-dot" style={{ '--d': '0.3s' }} />
             </div>
           </div>
         )}
@@ -1704,49 +1704,49 @@ function TempoAssistant({ context, open, onClose, variant }) {
 
       {/* Composer */}
       <div style={{
-        padding: ‘12px 14px’, borderTop: ‘1px solid var(--border-subtle)’,
-        background: ‘linear-gradient(0deg, rgba(0,0,0,0.15) 0%, transparent 100%)’
+        padding: '12px 14px', borderTop: '1px solid var(--border-subtle)',
+        background: 'linear-gradient(0deg, rgba(0,0,0,0.15) 0%, transparent 100%)'
       }}>
         <div style={{
-          display: ‘flex’, alignItems: ‘flex-end’, gap: 8,
-          background: ‘var(--surface-2)’, border: ‘1px solid var(--border)’,
-          borderRadius: 14, padding: ‘4px 4px 4px 14px’,
-          transition: ‘border-color 0.2s ease’
+          display: 'flex', alignItems: 'flex-end', gap: 8,
+          background: 'var(--surface-2)', border: '1px solid var(--border)',
+          borderRadius: 14, padding: '4px 4px 4px 14px',
+          transition: 'border-color 0.2s ease'
         }} className="tempo-chat-composer">
           <input
             ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === ‘Enter’ && !e.shiftKey) { e.preventDefault(); send(); } }}
-            placeholder={isVi() ? ‘Hoi bat ky dieu gi...’ : ‘Ask anything...’}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder={isVi() ? 'Hoi bat ky dieu gi...' : 'Ask anything...'}
             style={{
-              flex: 1, background: ‘transparent’, border: ‘none’,
-              padding: ‘8px 0’, fontSize: 13.5, color: ‘var(--text-primary)’,
-              outline: ‘none’, lineHeight: 1.4
+              flex: 1, background: 'transparent', border: 'none',
+              padding: '8px 0', fontSize: 13.5, color: 'var(--text-primary)',
+              outline: 'none', lineHeight: 1.4
             }}
           />
           <button
             onClick={send}
             disabled={loading || !input.trim()}
             style={{
-              width: 34, height: 34, borderRadius: 10, border: ‘none’, cursor: ‘pointer’,
-              background: input.trim() ? ‘linear-gradient(135deg, var(--violet-500, #8b5cf6), var(--indigo-500, #6366f1))’ : ‘rgba(255,255,255,0.06)’,
-              color: input.trim() ? ‘#fff’ : ‘var(--text-tertiary)’,
-              display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’,
-              transition: ‘all 0.2s ease’, flexShrink: 0,
+              width: 34, height: 34, borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: input.trim() ? 'linear-gradient(135deg, var(--violet-500, #8b5cf6), var(--indigo-500, #6366f1))' : 'rgba(255,255,255,0.06)',
+              color: input.trim() ? '#fff' : 'var(--text-tertiary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all 0.2s ease', flexShrink: 0,
               opacity: loading ? 0.5 : 1,
-              boxShadow: input.trim() ? ‘0 2px 8px rgba(139,92,246,0.3)’ : ‘none’
+              boxShadow: input.trim() ? '0 2px 8px rgba(139,92,246,0.3)' : 'none'
             }}
           >
             <Icon name="arrow-up" size={16} />
           </button>
         </div>
         <div style={{
-          display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           marginTop: 8, gap: 4
         }}>
-          <span style={{ fontSize: 10, color: ‘var(--text-tertiary)’, opacity: 0.5 }}>
-            Tempo AI · {isVi() ? ‘Tra loi tu tai lieu cua ban’ : ‘Answers from your document’}
+          <span style={{ fontSize: 10, color: 'var(--text-tertiary)', opacity: 0.5 }}>
+            Tempo AI · {isVi() ? 'Tra loi tu tai lieu cua ban' : 'Answers from your document'}
           </span>
         </div>
       </div>
