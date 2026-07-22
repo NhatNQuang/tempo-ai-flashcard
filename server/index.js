@@ -188,6 +188,10 @@ async function getGeminiEmbedding(text) {
   throw lastError || new Error('Embedding failed.');
 }
 
+function stripNullBytes(str) {
+  return str.replace(/\0/g, '');
+}
+
 async function extractTextFromBuffer(filename, buffer) {
   const name = filename.toLowerCase();
   console.log('[extractText] filename=', filename, 'bufferLen=', buffer.length);
@@ -200,15 +204,16 @@ async function extractTextFromBuffer(filename, buffer) {
     try {
       console.log('[extractText] trying unpdf...');
       const { extractText } = await getUnpdf();
-      const { text } = await extractText(buffer, { mergePages: true });
+      const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      const { text } = await extractText(uint8, { mergePages: true });
       console.log('[extractText] unpdf success, text length=', text?.length);
-      return mustHaveText(text);
+      return mustHaveText(stripNullBytes(text));
     } catch (unpdfErr) {
-      console.error('[extractText] unpdf failed:', unpdfErr.message, unpdfErr.stack?.split('\n').slice(0, 3).join('\n'));
+      console.error('[extractText] unpdf failed:', unpdfErr.message);
       console.log('[extractText] falling back to pdf-parse...');
       const parsed = await pdfParse(buffer);
       console.log('[extractText] pdf-parse success, text length=', parsed.text?.length);
-      return mustHaveText(parsed.text);
+      return mustHaveText(stripNullBytes(parsed.text));
     }
   }
   if (name.endsWith('.docx')) {
