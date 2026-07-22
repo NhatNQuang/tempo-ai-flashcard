@@ -2546,7 +2546,17 @@ async function callOpenAiText(prompt) {
 
 
 function stripCodeFence(text) {
-  return String(text || '').replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+  let s = String(text || '').replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+  // Fix ES6-style Unicode escapes (\u{XXXX}) → JSON-safe \uXXXX (BMP only; drop non-BMP)
+  s = s.replace(/\\u\{([0-9a-fA-F]+)\}/g, (_m, hex) => {
+    const cp = parseInt(hex, 16);
+    if (cp <= 0xFFFF) return '\\u' + hex.padStart(4, '0');
+    // Non-BMP: encode as surrogate pair
+    const hi = Math.floor((cp - 0x10000) / 0x400) + 0xD800;
+    const lo = ((cp - 0x10000) % 0x400) + 0xDC00;
+    return '\\u' + hi.toString(16) + '\\u' + lo.toString(16);
+  });
+  return s;
 }
 
 function normalizeCards(cards, contentType) {
