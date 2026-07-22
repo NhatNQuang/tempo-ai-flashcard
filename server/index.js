@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
+let _unpdf = null;
+function getUnpdf() { if (!_unpdf) _unpdf = import('unpdf'); return _unpdf; }
 const mammoth = require('mammoth');
 const officeParser = require('officeparser');
 const { createClient } = require('@supabase/supabase-js');
@@ -192,8 +194,17 @@ async function extractTextFromBuffer(filename, buffer) {
     return mustHaveText(buffer.toString('utf8'));
   }
   if (name.endsWith('.pdf')) {
-    const parsed = await pdfParse(buffer);
-    return mustHaveText(parsed.text);
+    // Use unpdf (modern pdfjs-dist) to avoid "unsupported Unicode escape sequence"
+    // errors from the old pdf.js bundled with pdf-parse
+    try {
+      const { extractText } = await getUnpdf();
+      const { text } = await extractText(buffer, { mergePages: true });
+      return mustHaveText(text);
+    } catch (unpdfErr) {
+      console.error('unpdf failed, falling back to pdf-parse:', unpdfErr.message);
+      const parsed = await pdfParse(buffer);
+      return mustHaveText(parsed.text);
+    }
   }
   if (name.endsWith('.docx')) {
     const parsed = await mammoth.extractRawText({ buffer: buffer });
