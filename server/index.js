@@ -190,6 +190,7 @@ async function getGeminiEmbedding(text) {
 
 async function extractTextFromBuffer(filename, buffer) {
   const name = filename.toLowerCase();
+  console.log('[extractText] filename=', filename, 'bufferLen=', buffer.length);
   if (name.endsWith('.txt') || name.endsWith('.md')) {
     return mustHaveText(buffer.toString('utf8'));
   }
@@ -197,12 +198,16 @@ async function extractTextFromBuffer(filename, buffer) {
     // Use unpdf (modern pdfjs-dist) to avoid "unsupported Unicode escape sequence"
     // errors from the old pdf.js bundled with pdf-parse
     try {
+      console.log('[extractText] trying unpdf...');
       const { extractText } = await getUnpdf();
       const { text } = await extractText(buffer, { mergePages: true });
+      console.log('[extractText] unpdf success, text length=', text?.length);
       return mustHaveText(text);
     } catch (unpdfErr) {
-      console.error('unpdf failed, falling back to pdf-parse:', unpdfErr.message);
+      console.error('[extractText] unpdf failed:', unpdfErr.message, unpdfErr.stack?.split('\n').slice(0, 3).join('\n'));
+      console.log('[extractText] falling back to pdf-parse...');
       const parsed = await pdfParse(buffer);
+      console.log('[extractText] pdf-parse success, text length=', parsed.text?.length);
       return mustHaveText(parsed.text);
     }
   }
@@ -219,14 +224,17 @@ async function extractTextFromBuffer(filename, buffer) {
 
 // Helper: Synchronous document thunk & embeddings saver for legacy endpoints
 async function saveDocumentToDb(userId, filename, mimeType, size, text) {
+  console.log('[saveDoc] start, filename=', filename, 'textLen=', text.length);
   const docId = crypto.randomUUID();
   const storagePath = `documents-raw-temp/${userId}/${docId}/${filename}`;
-  
+
   const chunks = chunkText(text, 1000);
+  console.log('[saveDoc] chunked into', chunks.length, 'chunks');
   const chunkObjects = [];
 
   for (let i = 0; i < chunks.length; i++) {
     const chunkText = chunks[i];
+    console.log('[saveDoc] embedding chunk', i + 1, '/', chunks.length, 'len=', chunkText.length);
     const embedding = await getGeminiEmbedding(chunkText);
     chunkObjects.push({
       chunk_index: i,
@@ -235,6 +243,7 @@ async function saveDocumentToDb(userId, filename, mimeType, size, text) {
     });
   }
 
+  console.log('[saveDoc] calling rpc_create_document_and_chunks');
   const { data: dbDoc, error: rpcError } = await supabase.rpc('rpc_create_document_and_chunks', {
     p_owner_id: userId,
     p_title: filename.replace(/\.[^.]+$/, ''),
@@ -246,7 +255,10 @@ async function saveDocumentToDb(userId, filename, mimeType, size, text) {
     p_chunks: chunkObjects
   });
 
-  if (rpcError) throw rpcError;
+  if (rpcError) {
+    console.error('[saveDoc] rpc error:', rpcError);
+    throw rpcError;
+  }
   return dbDoc;
 }
 
@@ -1977,9 +1989,11 @@ app.get('/api/v1/activity', async (req, res) => {
 
 app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => {
   try {
+    console.log('[flashcards] STEP 1: ensureKeys');
     ensureGeminiKeys();
     ensureOpenAiKey();
 
+    console.log('[flashcards] STEP 2: getUserId');
     const userId = getUserIdFromRequest(req);
     let filename, buffer, mimeType, fileSize;
 
@@ -1987,6 +2001,7 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
     // 1. Storage-first (JSON body with storagePath) — avoids Vercel 4.5MB body limit
     // 2. Legacy multipart upload (file in request body)
     if (req.body.storagePath) {
+      console.log('[flashcards] STEP 3: download from storage, path=', req.body.storagePath);
       const storagePath = req.body.storagePath;
       filename = req.body.originalFilename || storagePath.split('/').pop();
       const uc = userClient(req);
@@ -1997,7 +2012,9 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
       buffer = Buffer.from(await fileBlob.arrayBuffer());
       mimeType = 'application/octet-stream';
       fileSize = buffer.length;
+      console.log('[flashcards] STEP 3 done: downloaded', fileSize, 'bytes, filename=', filename);
     } else {
+      console.log('[flashcards] STEP 3: legacy multipart upload');
       const file = ensureFile(req.file);
       filename = file.originalname;
       buffer = file.buffer;
@@ -2016,15 +2033,21 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
       return res.status(400).json({ error: 'Deck name is required.' });
     }
 
+    console.log('[flashcards] STEP 4: checkQuota');
     const quotaBlock = await checkQuota(userId, 'flashcards');
     if (quotaBlock) return res.status(quotaBlock.status).json(quotaBlock.body);
 
+    console.log('[flashcards] STEP 5: extractTextFromBuffer');
     const extractedText = await extractTextFromBuffer(filename, buffer);
+    console.log('[flashcards] STEP 5 done: extractedText length=', extractedText.length);
 
     // Save document thunk & embeddings to database
+    console.log('[flashcards] STEP 6: saveDocumentToDb');
     const dbDoc = await saveDocumentToDb(userId, filename, mimeType, fileSize, extractedText);
+    console.log('[flashcards] STEP 6 done: docId=', dbDoc?.document_id);
 
-    // Generate material via OpenAI
+    // Generate material via LLM
+    console.log('[flashcards] STEP 7: generateFlashcardsWithRetry');
     const cards = await generateFlashcardsWithRetry({
       text: extractedText,
       deckName,
@@ -2033,13 +2056,14 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
       contentType,
       sourceName: filename,
     });
+    console.log('[flashcards] STEP 7 done: cards count=', cards.length);
 
     if (cards.length === 0) {
       return res.status(502).json({ error: 'OpenAI returned no usable flashcards.' });
     }
 
-
     // Save flashcards to database using RPC
+    console.log('[flashcards] STEP 8: rpc_save_flashcards');
     const { data: dbSet, error: saveError } = await supabase.rpc('rpc_save_flashcards', {
       p_owner_id: userId,
       p_doc_id: dbDoc.document_id,
@@ -2050,9 +2074,10 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
     });
 
     if (saveError) {
-      console.error('Failed to save flashcards to Supabase:', saveError);
+      console.error('[flashcards] STEP 8 error:', saveError);
     }
 
+    console.log('[flashcards] STEP 9: sending response');
     res.json({
       deck: {
         id: dbSet?.resource_id || crypto.randomUUID(),
@@ -2067,7 +2092,10 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
         cards,
       },
     });
+    console.log('[flashcards] STEP 9 done: success');
   } catch (error) {
+    console.error('[flashcards] CAUGHT ERROR at top level:', error.message);
+    console.error('[flashcards] Error stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
     handleApiError(res, error);
   }
 });
