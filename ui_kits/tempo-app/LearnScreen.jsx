@@ -118,18 +118,52 @@ async function getAuthHeaders() {
   return headers;
 }
 
-async function requestGeneratedMaterial(endpoint, fields) {
-  const formData = new FormData();
-  Object.entries(fields).forEach(([key, value]) => {
-    if (value != null) formData.append(key, value);
-  });
+async function uploadFileToStorage(file) {
+  if (!window.supabaseClient) throw new Error('Not authenticated.');
+  const { data: { session } } = await window.supabaseClient.auth.getSession();
+  const userId = session?.user?.id || 'anon';
+  const pathInBucket = `documents-raw-temp/${userId}/${crypto.randomUUID()}/${file.name}`;
+  const { error } = await window.supabaseClient.storage
+    .from('documents-raw-temp')
+    .upload(pathInBucket, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+  if (error) throw new Error('Failed to upload file: ' + error.message);
+  return pathInBucket;
+}
 
+async function requestGeneratedMaterial(endpoint, fields) {
   const authHeaders = await getAuthHeaders();
+
+  // Upload file to Supabase Storage first to avoid Vercel 4.5MB body limit,
+  // then send only the storage path + metadata as JSON.
+  const file = fields.file;
+  let body;
+  let contentType;
+  if (file instanceof File || file instanceof Blob) {
+    const storagePath = await uploadFileToStorage(file);
+    const jsonFields = {};
+    Object.entries(fields).forEach(([key, value]) => {
+      if (key !== 'file' && value != null) jsonFields[key] = value;
+    });
+    jsonFields.storagePath = storagePath;
+    jsonFields.originalFilename = file.name;
+    body = JSON.stringify(jsonFields);
+    contentType = 'application/json';
+  } else {
+    // Fallback: no file, send as JSON
+    const jsonFields = {};
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value != null) jsonFields[key] = value;
+    });
+    body = JSON.stringify(jsonFields);
+    contentType = 'application/json';
+  }
+
   const response = await fetch(endpoint, {
     method: 'POST',
-    body: formData,
+    body,
     headers: {
-      ...authHeaders
+      ...authHeaders,
+      'Content-Type': contentType,
     }
   });
   const payload = await response.json().catch(() => null);

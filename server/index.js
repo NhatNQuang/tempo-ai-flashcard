@@ -200,8 +200,7 @@ async function extractTextFromBuffer(filename, buffer) {
     return mustHaveText(parsed.value);
   }
   if (name.endsWith('.pptx')) {
-    const ast = await officeParser.parseOffice(buffer, { fileType: 'pptx' });
-    const { value: parsedText } = await ast.to('text');
+    const parsedText = await officeParser.parseOffice(buffer, { fileType: 'pptx' });
     return mustHaveText(parsedText);
   }
   throw new Error('Unsupported file type.');
@@ -1969,7 +1968,34 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
   try {
     ensureGeminiKeys();
     ensureOpenAiKey();
-    const file = ensureFile(req.file);
+
+    const userId = getUserIdFromRequest(req);
+    let filename, buffer, mimeType, fileSize;
+
+    // Support two upload modes:
+    // 1. Storage-first (JSON body with storagePath) — avoids Vercel 4.5MB body limit
+    // 2. Legacy multipart upload (file in request body)
+    if (req.body.storagePath) {
+      const storagePath = req.body.storagePath;
+      filename = req.body.originalFilename || storagePath.split('/').pop();
+      const { data: fileBlob, error: dlError } = await supabase.storage
+        .from('documents-raw-temp')
+        .download(storagePath);
+      if (dlError) throw new Error('Failed to download file from storage: ' + dlError.message);
+      buffer = Buffer.from(await fileBlob.arrayBuffer());
+      mimeType = 'application/octet-stream';
+      fileSize = buffer.length;
+    } else {
+      const file = ensureFile(req.file);
+      filename = file.originalname;
+      buffer = file.buffer;
+      mimeType = file.mimetype;
+      fileSize = file.size;
+
+      const uploadBlock = await checkUploadAllowed(userId, file);
+      if (uploadBlock) return res.status(uploadBlock.status).json(uploadBlock.body);
+    }
+
     const deckName = String(req.body.deckName || '').trim();
     const difficulty = normalizeDifficulty(req.body.difficulty);
     const contentType = normalizeContentType(req.body.contentType);
@@ -1978,17 +2004,13 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
       return res.status(400).json({ error: 'Deck name is required.' });
     }
 
-    const userId = getUserIdFromRequest(req);
-
-    const uploadBlock = await checkUploadAllowed(userId, file);
-    if (uploadBlock) return res.status(uploadBlock.status).json(uploadBlock.body);
     const quotaBlock = await checkQuota(userId, 'flashcards');
     if (quotaBlock) return res.status(quotaBlock.status).json(quotaBlock.body);
 
-    const extractedText = await extractTextFromBuffer(file.originalname, file.buffer);
+    const extractedText = await extractTextFromBuffer(filename, buffer);
 
     // Save document thunk & embeddings to database
-    const dbDoc = await saveDocumentToDb(userId, file.originalname, file.mimetype, file.size, extractedText);
+    const dbDoc = await saveDocumentToDb(userId, filename, mimeType, fileSize, extractedText);
 
     // Generate material via OpenAI
     const cards = await generateFlashcardsWithRetry({
@@ -1997,7 +2019,7 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
       count,
       difficulty,
       contentType,
-      sourceName: file.originalname,
+      sourceName: filename,
     });
 
     if (cards.length === 0) {
@@ -2026,7 +2048,7 @@ app.post('/api/generate/flashcards', upload.single('file'), async (req, res) => 
         count: cards.length,
         difficulty,
         contentType,
-        source: file.originalname,
+        source: filename,
         createdAt: Date.now(),
         lastUsedAt: null,
         documentContext: extractedText,
@@ -2042,34 +2064,54 @@ app.post('/api/generate/notes', upload.single('file'), async (req, res) => {
   try {
     ensureGeminiKeys();
     ensureOpenAiKey();
-    const file = ensureFile(req.file);
+
+    const userId = getUserIdFromRequest(req);
+    let filename, buffer, mimeType, fileSize;
+
+    if (req.body.storagePath) {
+      const storagePath = req.body.storagePath;
+      filename = req.body.originalFilename || storagePath.split('/').pop();
+      const { data: fileBlob, error: dlError } = await supabase.storage
+        .from('documents-raw-temp')
+        .download(storagePath);
+      if (dlError) throw new Error('Failed to download file from storage: ' + dlError.message);
+      buffer = Buffer.from(await fileBlob.arrayBuffer());
+      mimeType = 'application/octet-stream';
+      fileSize = buffer.length;
+    } else {
+      const file = ensureFile(req.file);
+      filename = file.originalname;
+      buffer = file.buffer;
+      mimeType = file.mimetype;
+      fileSize = file.size;
+
+      const uploadBlock = await checkUploadAllowed(userId, file);
+      if (uploadBlock) return res.status(uploadBlock.status).json(uploadBlock.body);
+    }
+
     const noteName = String(req.body.noteName || '').trim();
     const detail = normalizeDetail(req.body.detail);
     if (!noteName) {
       return res.status(400).json({ error: 'Note name is required.' });
     }
 
-    const userId = getUserIdFromRequest(req);
-
-    const uploadBlock = await checkUploadAllowed(userId, file);
-    if (uploadBlock) return res.status(uploadBlock.status).json(uploadBlock.body);
     const quotaBlock = await checkQuota(userId, 'notes');
     if (quotaBlock) return res.status(quotaBlock.status).json(quotaBlock.body);
 
-    const extractedText = await extractTextFromBuffer(file.originalname, file.buffer);
+    const extractedText = await extractTextFromBuffer(filename, buffer);
 
     // Save document thunk & embeddings to database
-    const dbDoc = await saveDocumentToDb(userId, file.originalname, file.mimetype, file.size, extractedText);
+    const dbDoc = await saveDocumentToDb(userId, filename, mimeType, fileSize, extractedText);
 
     // Generate material via OpenAI
     const prompt = buildNotesPrompt({
       text: extractedText,
       noteName,
       detail,
-      sourceName: file.originalname,
+      sourceName: filename,
     });
     const data = await callOpenAiJson(prompt);
-    const note = normalizeNote(data, noteName, detail, file.originalname);
+    const note = normalizeNote(data, noteName, detail, filename);
 
     // Save notes to database using RPC
     const { data: dbNote, error: saveError } = await supabase.rpc('rpc_save_notes', {
